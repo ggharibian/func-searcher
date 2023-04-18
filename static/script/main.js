@@ -20,6 +20,7 @@ class FileNode {
     children = {};
     x = 0;
     y = 0;
+    children_below_to_render = 0;
     children_clean = {};
     content = undefined;
     dependencies = new Set();
@@ -329,7 +330,7 @@ function updateNodesInView(ms) {
 
     while (searchQueue.length != 0) {
         let cn = searchQueue.pop();
-        if (cn.display_size <= ms || cn.type == NodeTypes.File) {
+        if ((cn.display_size <= ms && cn.children_below_to_render == 0) || cn.type == NodeTypes.File) {
             newNodesInView.push(cn);
         }
         else {
@@ -418,10 +419,11 @@ function updateView() {
     let onClick = event => {
         if (event.target.json().selected && event.target.json().data.type == 'folder') {
             let n = globalThis.folders[event.target.data('id')];
-            globalThis.nodesInView = globalThis.nodesInView.filter(i => i.filepath != n.filepath);
-            Object.values(n.children).forEach(c => {
-                globalThis.nodesInView.push(c);
-            });
+            while (n != undefined) {
+                n.children_below_to_render++;
+                n = n.parent;
+            }
+            updateNodesInView(globalThis.cy.extent().h);
             updateView();
         }
     };
@@ -708,6 +710,7 @@ function goToView() {
             root_node.total_offset_x = WIDTH / 2;
             root_node.total_offset_y = HEIGHT / 2;
             globalThis.root = root_node;
+            globalThis.folders[root_node.filepath] = root_node;
 
 
             for (const k in globalThis.nodes) {
@@ -725,6 +728,14 @@ function goToView() {
             globalThis.functionDefs = {};
             Object.values(globalThis.nodes).forEach(n => {
                 Object.keys(n.content.FunctionDef).forEach(d => {
+                    if (!globalThis.functionDefs.hasOwnProperty(d)) {
+                        globalThis.functionDefs[d] = [];
+                    }
+                    globalThis.functionDefs[d].push(n.filepath);
+                });
+            });
+            Object.values(globalThis.nodes).forEach(n => {
+                Object.keys(n.content.ClassDef).forEach(d => {
                     if (!globalThis.functionDefs.hasOwnProperty(d)) {
                         globalThis.functionDefs[d] = [];
                     }
