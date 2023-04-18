@@ -706,6 +706,14 @@ function goToView() {
                     globalThis.functionDefs[d].push(n.filepath);
                 });
             });
+            Object.values(globalThis.nodes).forEach(n => {
+                Object.keys(n.content.ClassDef).forEach(d => {
+                    if (!globalThis.functionDefs.hasOwnProperty(d)) {
+                        globalThis.functionDefs[d] = [];
+                    }
+                    globalThis.functionDefs[d].push(n.filepath);
+                });
+            });
 
             setSearchView();
 
