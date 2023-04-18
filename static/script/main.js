@@ -342,6 +342,30 @@ function updateNodesInView(ms) {
     globalThis.nodesInView = newNodesInView;
 }
 
+function createDescBox(targetPath, targetDataType) {
+    if (targetDataType == 'file') {
+        // console.log(globalThis.nodes)
+        // console.log(globalThis.nodes[targetPath]);
+        const node_content = globalThis.nodes[targetPath];
+        const file_contents = node_content.content;
+        const class_defs = Object.keys(file_contents.ClassDef);
+        const function_calls = Object.keys(file_contents.FunctionCall);
+        const function_defs = Object.keys(file_contents.FunctionDef);
+        const dependencies = node_content.dependencies;
+        const dependents = node_content.dependents;
+        const fileName = node_content.filename;
+        const filepath = node_content.filepath;
+    }
+
+    if (targetDataType == 'folder') {
+        // console.log(globalThis.folders[targetPath]);
+        const folder_content = globalThis.folders[targetPath];
+        const file_contents = folder_content.children_clean;
+        const fileName = folder_content.filename;
+        const filepath = folder_content.filepath;
+    }
+}
+
 function updateView() {
     globalThis.cy.elements().remove();
 
@@ -384,6 +408,7 @@ function updateView() {
 
     let onMouseOver = event => {
         event.target.connectedEdges().style({ 'line-color': 'red' });
+        createDescBox(event.target.data('id'), event.target.data('type'));
     };
 
     let onMouseOut = event => {
@@ -514,10 +539,10 @@ function highlightCallTree(name) {
     }
 
     Object.keys(depNodeSet).forEach(k => {
-        globalThis.cy.nodes(`node[id="${k}"]`).style({'background-color': 'red'});
+        globalThis.cy.nodes(`node[id="${k}"]`).style({ 'background-color': 'red' });
     });
     depEdgeSet.forEach(e => {
-        globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({'line-color': 'red'});
+        globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
     })
 }
 
