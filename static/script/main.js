@@ -428,6 +428,17 @@ function computeNodeLoc(node) {
     });
 }
 
+function setSearchView() {
+    let searchHtml = ``
+    Object.keys(globalThis.functionDefs).forEach(f => {
+        globalThis.functionDefs[f].forEach(file => {
+            searchHtml += `<option>${f} (${file.replace('txt', 'py')})</option>`
+        });
+    });
+
+    document.getElementById('func-list').innerHTML = searchHtml;
+}
+
 function goToView() {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -478,11 +489,24 @@ function goToView() {
             root_node.total_offset_y = HEIGHT / 2;
             globalThis.root = root_node;
 
+
             for (const k in globalThis.nodes) {
                 computeDependencies(globalThis.nodes[k], globalThis.nodes);
             }
             computeFolderDependencies(root_node);
             computeNodeLoc(root_node);
+
+            globalThis.functionDefs = {};
+            Object.values(globalThis.nodes).forEach(n => {
+                Object.keys(n.content.FunctionDef).forEach(d => {
+                    if (!globalThis.functionDefs.hasOwnProperty(d)) {
+                        globalThis.functionDefs[d] = [];
+                    }
+                    globalThis.functionDefs[d].push(n.filepath);
+                });
+            });
+
+            setSearchView();
 
             globalThis.cy = cytoscape({
                 container: document.getElementById('cy'),

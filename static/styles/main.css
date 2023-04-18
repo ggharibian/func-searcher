@@ -1,5 +1,10 @@
-#cy {
-    width: 1000px;
-    height: 800px;
-    display: block;
-  }
+#cy
+{
+  width: 1000px;
+  height: 800px;
+  display: block;
+}
+
+.search {
+  width: 1000px;
+}
