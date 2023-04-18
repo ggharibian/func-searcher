@@ -431,7 +431,7 @@ function computeNodeLoc(node) {
 function isMatch(uin, ref) {
     let output_map = [];
     let userWords = uin.split(' ');
-    for (w in userWords){
+    for (w in userWords) {
         let i = ref.indexOf(userWords[w]);
         if (i == -1) return [];
 
@@ -445,15 +445,80 @@ function isMatch(uin, ref) {
                 [ref.substring(0, i), 'normal']
             );
             output_map.push(
-                [ref.substring(i, i+userWords[w].length), 'strong']
+                [ref.substring(i, i + userWords[w].length), 'strong']
             );
         }
-        ref = ref.substring(i+userWords[w].length);
+        ref = ref.substring(i + userWords[w].length);
     }
     output_map.push(
         [ref, 'normal']
     );
     return output_map;
+}
+
+function highlightCallTree(name) {
+    globalThis.cy.edges().style({ 'line-color': '#ccc' });
+    let filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'txt').split('/');
+    let rf = '';
+    let viewablePathSet = new Set(globalThis.nodesInView.map(i => i.filepath));
+    for (f in filepath) {
+        rf += filepath[f];
+        if (viewablePathSet.has(rf)) {
+            break;
+        }
+        rf += '/';
+    }
+
+    let depEdgeSet = new Set();
+    let depNodeSet = {};
+    let searchQueue = [];
+    searchQueue.push(rf);
+    searchQueue.push('dependency');
+    searchQueue.push(rf);
+    searchQueue.push('dependent');
+
+    while (searchQueue.length != 0) {
+        let ctype = searchQueue.pop();
+        let cn = searchQueue.pop();
+
+        if (depNodeSet.hasOwnProperty(cn) && depNodeSet[cn] == ctype) {
+            continue;
+        }
+        depNodeSet[cn] = ctype;
+        let node = globalThis.nodes.hasOwnProperty(cn) ? globalThis.nodes[cn] : globalThis.folders[cn];
+
+        if (ctype == 'dependency') {
+            node.dependencies.forEach(c => {
+                if (viewablePathSet.has(c) && c != cn) {
+                    depEdgeSet.add([cn, c]);
+
+                    if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
+                        searchQueue.push(c);
+                        searchQueue.push('dependency');
+                    }
+                }
+            });
+        }
+        else {
+            node.dependents.forEach(c => {
+                if (viewablePathSet.has(c) && c != cn) {
+                    depEdgeSet.add([c, cn]);
+
+                    if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
+                        searchQueue.push(c);
+                        searchQueue.push('dependent');
+                    }
+                }
+            });
+        }
+    }
+
+    Object.keys(depNodeSet).forEach(k => {
+        globalThis.cy.nodes(`node[id="${k}"]`).style({'background-color': 'red'});
+    });
+    depEdgeSet.forEach(e => {
+        globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({'line-color': 'red'});
+    })
 }
 
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
@@ -469,11 +534,11 @@ function setSearchView() {
     the text field element and an array of possible autocompleted values:*/
     var currentFocus;
     /*execute a function when someone writes in the text field:*/
-    inp.addEventListener("input", function(e) {
+    inp.addEventListener("input", function (e) {
         var a, b, i, val = this.value;
         /*close any already open lists of autocompleted values*/
         closeAllLists();
-        if (!val) { return false;}
+        if (!val) { return false; }
         currentFocus = -1;
         /*create a DIV element that will contain the items (values):*/
         a = document.createElement("DIV");
@@ -483,90 +548,91 @@ function setSearchView() {
         this.parentNode.appendChild(a);
         /*for each item in the array...*/
         for (i = 0; i < arr.length; i++) {
-          /*check if the item starts with the same letters as the text field value:*/
-          let omap = isMatch(val.toUpperCase(), arr[i].toUpperCase());
-          if (omap.length != 0) {
-            /*create a DIV element for each matching element:*/
-            b = document.createElement("DIV");
-            /*make the matching letters bold:*/
-            omap.forEach(o => {
-                if (o[1] == 'strong') {
-                    b.innerHTML += "<strong>" + o[0] + "</strong>";
-                }
-                else {
-                    b.innerHTML += o[0];
-                }
-            });
-            /*insert a input field that will hold the current array item's value:*/
-            b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
-            /*execute a function when someone clicks on the item value (DIV element):*/
-                b.addEventListener("click", function(e) {
-                /*insert the value for the autocomplete text field:*/
-                inp.value = this.getElementsByTagName("input")[0].value;
-                /*close the list of autocompleted values,
-                (or any other open lists of autocompleted values:*/
-                closeAllLists();
-            });
-            a.appendChild(b);
-          }
+            /*check if the item starts with the same letters as the text field value:*/
+            let omap = isMatch(val.toUpperCase(), arr[i].toUpperCase());
+            if (omap.length != 0) {
+                /*create a DIV element for each matching element:*/
+                b = document.createElement("DIV");
+                /*make the matching letters bold:*/
+                omap.forEach(o => {
+                    if (o[1] == 'strong') {
+                        b.innerHTML += "<strong>" + o[0] + "</strong>";
+                    }
+                    else {
+                        b.innerHTML += o[0];
+                    }
+                });
+                /*insert a input field that will hold the current array item's value:*/
+                b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+                /*execute a function when someone clicks on the item value (DIV element):*/
+                b.addEventListener("click", function (e) {
+                    /*insert the value for the autocomplete text field:*/
+                    inp.value = this.getElementsByTagName("input")[0].value;
+                    highlightCallTree(inp.value);
+                    /*close the list of autocompleted values,
+                    (or any other open lists of autocompleted values:*/
+                    closeAllLists();
+                });
+                a.appendChild(b);
+            }
         }
     });
     /*execute a function presses a key on the keyboard:*/
-    inp.addEventListener("keydown", function(e) {
+    inp.addEventListener("keydown", function (e) {
         var x = document.getElementById(this.id + "autocomplete-list");
         if (x) x = x.getElementsByTagName("div");
         if (e.keyCode == 40) {
-          /*If the arrow DOWN key is pressed,
-          increase the currentFocus variable:*/
-          currentFocus++;
-          /*and and make the current item more visible:*/
-          addActive(x);
+            /*If the arrow DOWN key is pressed,
+            increase the currentFocus variable:*/
+            currentFocus++;
+            /*and and make the current item more visible:*/
+            addActive(x);
         } else if (e.keyCode == 38) { //up
-          /*If the arrow UP key is pressed,
-          decrease the currentFocus variable:*/
-          currentFocus--;
-          /*and and make the current item more visible:*/
-          addActive(x);
+            /*If the arrow UP key is pressed,
+            decrease the currentFocus variable:*/
+            currentFocus--;
+            /*and and make the current item more visible:*/
+            addActive(x);
         } else if (e.keyCode == 13) {
-          /*If the ENTER key is pressed, prevent the form from being submitted,*/
-          e.preventDefault();
-          if (currentFocus > -1) {
-            /*and simulate a click on the "active" item:*/
-            if (x) x[currentFocus].click();
-          }
+            /*If the ENTER key is pressed, prevent the form from being submitted,*/
+            e.preventDefault();
+            if (currentFocus > -1) {
+                /*and simulate a click on the "active" item:*/
+                if (x) x[currentFocus].click();
+            }
         }
     });
     function addActive(x) {
-      /*a function to classify an item as "active":*/
-      if (!x) return false;
-      /*start by removing the "active" class on all items:*/
-      removeActive(x);
-      if (currentFocus >= x.length) currentFocus = 0;
-      if (currentFocus < 0) currentFocus = (x.length - 1);
-      /*add class "autocomplete-active":*/
-      x[currentFocus].classList.add("autocomplete-active");
+        /*a function to classify an item as "active":*/
+        if (!x) return false;
+        /*start by removing the "active" class on all items:*/
+        removeActive(x);
+        if (currentFocus >= x.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = (x.length - 1);
+        /*add class "autocomplete-active":*/
+        x[currentFocus].classList.add("autocomplete-active");
     }
     function removeActive(x) {
-      /*a function to remove the "active" class from all autocomplete items:*/
-      for (var i = 0; i < x.length; i++) {
-        x[i].classList.remove("autocomplete-active");
-      }
+        /*a function to remove the "active" class from all autocomplete items:*/
+        for (var i = 0; i < x.length; i++) {
+            x[i].classList.remove("autocomplete-active");
+        }
     }
     function closeAllLists(elmnt) {
-      /*close all autocomplete lists in the document,
-      except the one passed as an argument:*/
-      var x = document.getElementsByClassName("autocomplete-items");
-      for (var i = 0; i < x.length; i++) {
-        if (elmnt != x[i] && elmnt != inp) {
-        x[i].parentNode.removeChild(x[i]);
-      }
+        /*close all autocomplete lists in the document,
+        except the one passed as an argument:*/
+        var x = document.getElementsByClassName("autocomplete-items");
+        for (var i = 0; i < x.length; i++) {
+            if (elmnt != x[i] && elmnt != inp) {
+                x[i].parentNode.removeChild(x[i]);
+            }
+        }
     }
-  }
-  /*execute a function when someone clicks in the document:*/
-  document.addEventListener("click", function (e) {
-      closeAllLists(e.target);
-  });
-  }
+    /*execute a function when someone clicks in the document:*/
+    document.addEventListener("click", function (e) {
+        closeAllLists(e.target);
+    });
+}
 
 function goToView() {
     let req = new XMLHttpRequest();
@@ -623,6 +689,12 @@ function goToView() {
                 computeDependencies(globalThis.nodes[k], globalThis.nodes);
             }
             computeFolderDependencies(root_node);
+            for (const k in globalThis.nodes) {
+                globalThis.nodes[k].dependents = augmentDependencySet(globalThis.nodes[k].dependents);
+            }
+            for (const k in globalThis.folders) {
+                globalThis.folders[k].dependents = augmentDependencySet(globalThis.folders[k].dependents);
+            }
             computeNodeLoc(root_node);
 
             globalThis.functionDefs = {};
