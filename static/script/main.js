@@ -419,14 +419,25 @@ function updateView() {
     let onClick = event => {
         if (event.target.json().selected && event.target.json().data.type == 'folder') {
             let n = globalThis.folders[event.target.data('id')];
-            while (n != undefined) {
-                n.children_below_to_render++;
-                n = n.parent;
+            let cn = n;
+            while (cn != undefined) {
+                cn.children_below_to_render++;
+                cn = cn.parent;
             }
             updateNodesInView(globalThis.cy.extent().h);
+            globalThis.ghostFolders.push({
+                group: 'nodes',
+                data: { type: 'ghost', id: n.filepath+'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
+                position: { x: n.total_offset_x, y: n.total_offset_y },
+                style: {'background-opacity': '0', 'border-width': '2', 'border-color': 'blue'}
+            });
             updateView();
         }
     };
+
+    globalThis.ghostFolders.forEach(g => {
+        globalThis.cy.add(g);
+    });
 
     cy.nodes().unbind("mouseover");
     cy.nodes().bind("mouseover", onMouseOver);
@@ -711,7 +722,7 @@ function goToView() {
             root_node.total_offset_y = HEIGHT / 2;
             globalThis.root = root_node;
             globalThis.folders[root_node.filepath] = root_node;
-
+            globalThis.ghostFolders = [];
 
             for (const k in globalThis.nodes) {
                 computeDependencies(globalThis.nodes[k], globalThis.nodes);
@@ -752,9 +763,10 @@ function goToView() {
                         "selector": "node[label]",
                         "style": {
                             "label": "data(label)",
-                            "width": node => node.data('type') == 'file' ? node.data('size') : node.data('w'),
-                            "height": node => node.data('type') == 'file' ? node.data('size') : node.data('h'),
-                            "shape": node => node.data('type') == 'file' ? "ellipse" : "round-rectangle",
+                            "width": node => node.data('type') != 'file' ? node.data('w') : node.data('size'),
+                            "height": node => node.data('type') != 'file' ? node.data('h') : node.data('size'),
+                            "shape": node => node.data('type') != 'file' ? "round-rectangle" : "ellipse",
+                            "z-index": node => node.data('z') != undefined ? node.data('z') : 10,
                         }
                     },
                     {
