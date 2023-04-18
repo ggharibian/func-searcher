@@ -17,9 +17,11 @@
         </div>
         <div id="main-content">
             <div id="cy"></div>
-            <input list="func-list" placeholder="Search for function..." class="search">
-            <datalist id="func-list">
-            </datalist>
+            <form autocomplete="off">
+                <div class="autocomplete" style="width:1000px;">
+                    <input id="func-search" type="text" name="funcSearch" placeholder="Search for function..." class="func-input">
+                </div>
+            </form>
 
         </div>
     </div>
