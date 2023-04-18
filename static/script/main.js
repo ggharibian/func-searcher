@@ -367,6 +367,17 @@ function createDescBox(targetPath, targetDataType) {
     }
 }
 
+function removeChildRenderRestriction(n) {
+    if (n.children_below_to_render != 0) {
+        n.children_below_to_render = 0;
+        Object.values(n.children).forEach(e => {
+            if (e.type == NodeTypes.Directory) {
+                removeChildRenderRestriction(e);
+            }
+        });
+    }
+}
+
 function updateView() {
     globalThis.cy.elements().remove();
 
@@ -417,7 +428,20 @@ function updateView() {
     };
 
     let onClick = event => {
-        if (event.target.json().selected && event.target.json().data.type == 'folder') {
+        if (event.target.json().data.type == 'ghost') {
+            let n = globalThis.folders[event.target.data('id').replace('SIUUU', '')];
+            removeChildRenderRestriction(n);
+            let cn = n.parent;
+            while (cn != undefined) {
+                cn.children_below_to_render--;
+                cn = cn.parent;
+            }
+            globalThis.ghostFolders = globalThis.ghostFolders.filter(i => globalThis.folders[i.data.id.replace('SIUUU', '')].children_below_to_render != 0);
+            console.log(globalThis.ghostFolders);
+            updateNodesInView(globalThis.cy.extent().h);
+            updateView();
+        }
+        else if (event.target.json().selected && event.target.json().data.type == 'folder') {
             let n = globalThis.folders[event.target.data('id')];
             let cn = n;
             while (cn != undefined) {
