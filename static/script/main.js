@@ -342,9 +342,9 @@ function updateNodesInView(ms) {
     globalThis.nodesInView = newNodesInView;
 }
 
-function updateGraphViewOnZoom(e) {
+function updateView() {
     globalThis.cy.elements().remove();
-    updateNodesInView(globalThis.cy.extent().h);
+
     let activePathSet = new Set();
     Object.values(globalThis.nodesInView).forEach(n => {
         activePathSet.add(n.filepath);
@@ -381,6 +381,40 @@ function updateGraphViewOnZoom(e) {
             });
         }
     });
+
+    let onMouseOver = event => {
+        event.target.connectedEdges().style({ 'line-color': 'red' });
+    };
+
+    let onMouseOut = event => {
+        event.target.connectedEdges().style({ 'line-color': '#ccc' });
+    };
+
+    let onClick = event => {
+        if (event.target.json().selected && event.target.json().data.type == 'folder') {
+            let n = globalThis.folders[event.target.data('id')];
+            globalThis.nodesInView = globalThis.nodesInView.filter(i => i.filepath != n.filepath);
+            Object.values(n.children).forEach(c => {
+                globalThis.nodesInView.push(c);
+            });
+            updateView();
+        }
+    };
+
+    cy.nodes().unbind("mouseover");
+    cy.nodes().bind("mouseover", onMouseOver);
+
+    cy.nodes().unbind("mouseout");
+    cy.nodes().bind("mouseout", onMouseOut);
+
+    cy.nodes().unbind('tap');
+    cy.nodes().bind('tap', onClick);
+}
+
+function updateGraphViewOnZoom() {
+    globalThis.cy.elements().remove();
+    updateNodesInView(globalThis.cy.extent().h);
+    updateView();
 }
 
 function computeNodeLoc(node) {
