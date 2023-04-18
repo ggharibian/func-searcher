@@ -683,6 +683,7 @@ function goToView() {
             root_node.total_offset_x = WIDTH / 2;
             root_node.total_offset_y = HEIGHT / 2;
             globalThis.root = root_node;
+            globalThis.folders[root_node.filepath] = root_node;
 
 
             for (const k in globalThis.nodes) {
