@@ -37,6 +37,10 @@ def graph_js():
 def graph_css():
     return send_from_directory('static/styles', 'graph.css')
 
+@app.route("/background.png")
+def background_img():
+    return send_from_directory('static/assets', 'background.png')
+
 @app.route("/reset", methods=['POST'])
 def reset_files():
     if os.path.exists(OUTPUT_FOLDER):
