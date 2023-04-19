@@ -391,14 +391,16 @@ function updateView() {
             if (n.type == NodeTypes.File) {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.txt', ''), size: n.display_size },
+                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.txt', ''), size: n.display_size},
+                    grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
                 });
             }
             else {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'folder', id: n.filepath, label: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING },
+                    data: { type: 'folder', id: n.filepath, label: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING},
+                    grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
                 });
             }
@@ -424,8 +426,25 @@ function updateView() {
     };
 
     let onMouseOut = event => {
-        event.target.connectedEdges().style({ 'line-color': '#ccc' });
+        if (!globalThis.currSelection.has(event.target.data('id'))) {
+            event.target.connectedEdges().style({ 'line-color': '#ccc' });
+        }
     };
+
+    let ngs = new Set();
+    globalThis.currSelection.forEach(s => {
+        if (activePathSet.has(s)) {
+            ngs.add(s);
+            let n = globalThis.cy.nodes(`node[id="${s}"]`);
+            n.select();
+            n.connectedEdges().style({ 'line-color': 'red' });
+        }
+    });
+    globalThis.currSelection = ngs;
+
+    if (globalThis.activeName != undefined) {
+        highlightCallTree(globalThis.activeName);
+    }
 
     let onClick = event => {
         if (event.target.json().data.type == 'ghost') {
@@ -437,7 +456,6 @@ function updateView() {
                 cn = cn.parent;
             }
             globalThis.ghostFolders = globalThis.ghostFolders.filter(i => globalThis.folders[i.data.id.replace('SIUUU', '')].children_below_to_render != 0);
-            console.log(globalThis.ghostFolders);
             updateNodesInView(globalThis.cy.extent().h);
             updateView();
         }
@@ -453,10 +471,22 @@ function updateView() {
                 group: 'nodes',
                 data: { type: 'ghost', id: n.filepath + 'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
                 position: { x: n.total_offset_x, y: n.total_offset_y },
+                grabbable: false,
                 style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
             });
             updateView();
         }
+    };
+
+    let onSelection = event => {
+        let tid = event.target.data('id');
+        globalThis.currSelection.add(tid);
+        globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
+    };
+    let onUnselection = event => {
+        let tid = event.target.data('id');
+        globalThis.currSelection.delete(tid);
+        globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': '#ccc' });
     };
 
     globalThis.ghostFolders.forEach(g => {
@@ -471,6 +501,9 @@ function updateView() {
 
     cy.nodes().unbind('tap');
     cy.nodes().bind('tap', onClick);
+
+    globalThis.cy.on('select', 'node', onSelection);
+    globalThis.cy.on('unselect', 'node', onUnselection);
 }
 
 function updateGraphViewOnZoom() {
@@ -519,7 +552,6 @@ function isMatch(uin, ref) {
 }
 
 function highlightCallTree(name) {
-    globalThis.cy.edges().style({ 'line-color': '#ccc' });
     var filepath;
     if (name.split(' ').length == 1) {
         filepath = name.replace('py', 'txt').split('/');
@@ -587,7 +619,7 @@ function highlightCallTree(name) {
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
-    })
+    });
 }
 
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
@@ -640,7 +672,10 @@ function setSearchView() {
                 b.addEventListener("click", function (e) {
                     /*insert the value for the autocomplete text field:*/
                     inp.value = this.getElementsByTagName("input")[0].value;
-                    highlightCallTree(inp.value);
+                    globalThis.activeName = inp.value;
+                    globalThis.cy.elements().remove();
+                    updateView();
+
                     /*close the list of autocompleted values,
                     (or any other open lists of autocompleted values:*/
                     closeAllLists();
@@ -757,6 +792,8 @@ function goToView() {
             globalThis.root = root_node;
             globalThis.folders[root_node.filepath] = root_node;
             globalThis.ghostFolders = [];
+            globalThis.currSelection = new Set();
+            globalThis.activeName = undefined;
 
             for (const k in globalThis.nodes) {
                 computeDependencies(globalThis.nodes[k], globalThis.nodes);
@@ -830,4 +867,11 @@ function goToView() {
     }
     req.open('GET', 'http://localhost:5000/files');
     req.send();
+}
+
+function onClearSelection() {
+    globalThis.cy.elements().remove();
+    globalThis.activeName = undefined;
+    updateView();
+    document.getElementById('func-search').value = '';
 }
