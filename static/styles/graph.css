@@ -1,0 +1,18 @@
+#cy
+{
+  width: 1000px;
+  height: 800px;
+  display: block;
+}
+
+/* https://www.w3schools.com/howto/howto_js_autocomplete.asp */
+.func-input {
+  width: 1000px;
+}
+.autocomplete-items div:hover {
+  background-color: #e9e9e9;
+}
+.autocomplete-active {
+  background-color: DodgerBlue !important;
+  color: #ffffff;
+}

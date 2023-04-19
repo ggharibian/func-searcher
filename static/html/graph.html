@@ -1,0 +1,27 @@
+<html>
+<script src="http://localhost:5000/graph.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+<link rel="stylesheet" href="http://localhost:5000/graph.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+    href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap"
+    rel="stylesheet">
+
+
+<body onload="goToView()">
+    <div class="content">
+        <div id="main-content">
+            <div id="cy"></div>
+            <form autocomplete="off">
+                <div class="autocomplete" style="width:1000px;">
+                    <input id="func-search" type="text" name="funcSearch" placeholder="Search for function..." class="func-input">
+                </div>
+            </form>
+            <button onclick="onClearSelection()">Clear Selection</button>
+
+        </div>
+    </div>
+</body>
+
+</html>

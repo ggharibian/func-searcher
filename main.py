@@ -25,6 +25,18 @@ def main_js():
 def main_css():
     return send_from_directory('static/styles', 'main.css')
 
+@app.route("/graph.html")
+def graph_html():
+    return send_from_directory('static/html', 'graph.html')
+
+@app.route("/graph.js")
+def graph_js():
+    return send_from_directory('static/script', 'graph.js')
+
+@app.route("/graph.css")
+def graph_css():
+    return send_from_directory('static/styles', 'graph.css')
+
 @app.route("/reset", methods=['POST'])
 def reset_files():
     if os.path.exists(OUTPUT_FOLDER):

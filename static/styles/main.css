@@ -1,18 +1,64 @@
-#cy
-{
-  width: 1000px;
-  height: 800px;
-  display: block;
+body {
+  font-family: 'Lato', 'sans-serif';
+  font-size: 20px;
 }
 
-/* https://www.w3schools.com/howto/howto_js_autocomplete.asp */
-.func-input {
-  width: 1000px;
+h1 {
+  background-color: black;
+  color: white;
+  font-size: 64px;
+  text-align: center;
+  padding: 20px;
+  margin: 0;
 }
-.autocomplete-items div:hover {
-  background-color: #e9e9e9;
+
+.content {
+  width: 40vw;
+  height: max-content;
+  position: absolute;
+  top: 25vh;
+  right: 30vw;
+  text-align: center;
+  border: 2px solid black;
+  padding-bottom: 3px;
 }
-.autocomplete-active {
-  background-color: DodgerBlue !important;
-  color: #ffffff;
+
+button {
+  background-color: #03254E;
+  border: 2px solid #03254E;
+  padding: 10px;
+  font-size: 20px;
+  color: white;
+  cursor:pointer;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+button:hover {
+  background-color: white;
+  color: #03254E;
+}
+
+meter {
+  width: 15vw;
+}
+
+input[type=file] {
+  font-size: 20px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+input[type=file]::file-selector-button {
+  background-color: #03254E;
+  border: 2px solid #03254E;
+  padding: 10px;
+  font-size: 20px;
+  color: white;
+  cursor:pointer;
+}
+
+input[type=file]::file-selector-button:hover {
+  background-color: white;
+  color: #03254E;
 }
