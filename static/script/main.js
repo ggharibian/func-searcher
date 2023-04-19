@@ -451,9 +451,9 @@ function updateView() {
             updateNodesInView(globalThis.cy.extent().h);
             globalThis.ghostFolders.push({
                 group: 'nodes',
-                data: { type: 'ghost', id: n.filepath+'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
+                data: { type: 'ghost', id: n.filepath + 'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
                 position: { x: n.total_offset_x, y: n.total_offset_y },
-                style: {'background-opacity': '0', 'border-width': '2', 'border-color': 'blue'}
+                style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
             });
             updateView();
         }
@@ -520,7 +520,14 @@ function isMatch(uin, ref) {
 
 function highlightCallTree(name) {
     globalThis.cy.edges().style({ 'line-color': '#ccc' });
-    let filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'txt').split('/');
+    var filepath;
+    if (name.split(' ').length == 1) {
+        filepath = name.replace('py', 'txt').split('/');
+    }
+    else {
+        filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'txt').split('/');
+    }
+
     let rf = '';
     let viewablePathSet = new Set(globalThis.nodesInView.map(i => i.filepath));
     for (f in filepath) {
@@ -591,6 +598,9 @@ function setSearchView() {
         globalThis.functionDefs[fDef].forEach(file => {
             arr.push(`${fDef} (${file.replace('txt', 'py')})`)
         });
+        if (globalThis.functionDefs[fDef].length == 0) {
+            arr.push(fDef.replace('txt', 'py'));
+        }
     });
     /*the autocomplete function takes two arguments,
     the text field element and an array of possible autocompleted values:*/
@@ -776,6 +786,9 @@ function goToView() {
                     }
                     globalThis.functionDefs[d].push(n.filepath);
                 });
+            });
+            Object.values(globalThis.nodes).forEach(n => {
+                globalThis.functionDefs[n.filepath] = [];
             });
 
             setSearchView();
