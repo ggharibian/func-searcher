@@ -7,7 +7,8 @@ from flask_cors import CORS
 
 import find_functions
 
-OUTPUT_FOLDER = "./index/"
+OUTPUT_FOLDER_PROCESSED = "./index/"
+OUTPUT_FOLDER_RAW = "./raw/"
 
 app = Flask(__name__)
 CORS(app)
@@ -43,23 +44,24 @@ def background_img():
 
 @app.route("/reset", methods=['POST'])
 def reset_files():
-    if os.path.exists(OUTPUT_FOLDER):
-        shutil.rmtree(OUTPUT_FOLDER)
+    if os.path.exists(OUTPUT_FOLDER_PROCESSED):
+        shutil.rmtree(OUTPUT_FOLDER_PROCESSED)
+    if os.path.exists(OUTPUT_FOLDER_RAW):
+        shutil.rmtree(OUTPUT_FOLDER_RAW)
     return ''
 
 @app.route("/src", methods=['POST'])
 def process_file():
     filepath = '/'.join(request.files['file'].filename.split('/')[:-1])
-    os.makedirs(os.path.join(OUTPUT_FOLDER, filepath), exist_ok=True)
-    request.files['file'].save(os.path.join(OUTPUT_FOLDER, request.files['file'].filename))
+    os.makedirs(os.path.join(OUTPUT_FOLDER_RAW, filepath), exist_ok=True)
+    os.makedirs(os.path.join(OUTPUT_FOLDER_PROCESSED, filepath), exist_ok=True)
+    request.files['file'].save(os.path.join(OUTPUT_FOLDER_RAW, request.files['file'].filename))
 
     llname = request.files['file'].filename.split('/')[-1]
     if len(llname.split('.')) >= 2 and llname.split('.')[1] == 'py':
-        new_fname = f"{filepath}/{llname.split('.')[0]}.txt"
-        with open(os.path.join(OUTPUT_FOLDER, new_fname), "w") as f:
-            f.write(find_functions.parse_file(os.path.join(OUTPUT_FOLDER, request.files['file'].filename)))
-
-    os.remove(os.path.join(OUTPUT_FOLDER, request.files['file'].filename))
+        new_fname = f"{filepath}/{llname.split('.')[0]}.json"
+        with open(os.path.join(OUTPUT_FOLDER_PROCESSED, new_fname), "w") as f:
+            f.write(find_functions.parse_file(os.path.join(OUTPUT_FOLDER_RAW, request.files['file'].filename)))
 
     return ''
 
@@ -68,10 +70,9 @@ def get_files():
     out = {}
 
     def generate_index(fp, do):
-
-        for o in os.listdir(os.path.join(OUTPUT_FOLDER, fp)):
-            if os.path.isfile(os.path.join(os.path.join(OUTPUT_FOLDER, fp), o)):
-                with open(os.path.join(os.path.join(OUTPUT_FOLDER, fp), o)) as f:
+        for o in os.listdir(os.path.join(OUTPUT_FOLDER_PROCESSED, fp)):
+            if os.path.isfile(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)):
+                with open(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)) as f:
                     p1 = os.path.join(fp, o)
                     p2 = json.loads(f.readline())
                     do[o] = {
@@ -94,6 +95,9 @@ def get_files():
 
     return out
 
+@app.route("/raw", methods=["GET"])
+def get_file():
+    return send_from_directory(OUTPUT_FOLDER_RAW, request.args['fpath'])
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')

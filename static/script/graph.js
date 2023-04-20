@@ -206,8 +206,8 @@ function computeDependencies(node, nodes) {
                 if (cn.children_clean.hasOwnProperty(next_file.replaceAll('_', ''))) {
                     cn = cn.children_clean[next_file.replaceAll('_', '')];
                 }
-                else if (cn.children_clean.hasOwnProperty(next_file.replace('_', '') + '.txt')) {
-                    cn = cn.children_clean[next_file.replaceAll('_', '') + '.txt'];
+                else if (cn.children_clean.hasOwnProperty(next_file.replace('_', '') + '.json')) {
+                    cn = cn.children_clean[next_file.replaceAll('_', '') + '.json'];
                 }
                 else {
                     if (fp.length > 1 && j == fp.length - 1 && nodes.hasOwnProperty(cn.filepath) && node.filepath != cn.filepath) {
@@ -373,7 +373,7 @@ function updateView() {
             if (n.type == NodeTypes.File) {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.txt', ''), size: n.display_size},
+                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.json', ''), size: n.display_size},
                     grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
                 });
@@ -536,10 +536,10 @@ function isMatch(uin, ref) {
 function highlightCallTree(name) {
     var filepath;
     if (name.split(' ').length == 1) {
-        filepath = name.replace('py', 'txt').split('/');
+        filepath = name.replace('py', 'json').split('/');
     }
     else {
-        filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'txt').split('/');
+        filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'json').split('/');
     }
 
     let rf = '';
@@ -610,10 +610,10 @@ function setSearchView() {
     let arr = [];
     Object.keys(globalThis.functionDefs).forEach(fDef => {
         globalThis.functionDefs[fDef].forEach(file => {
-            arr.push(`${fDef} (${file.replace('txt', 'py')})`)
+            arr.push(`${fDef} (${file.replace('json', 'py')})`)
         });
         if (globalThis.functionDefs[fDef].length == 0) {
-            arr.push(fDef.replace('txt', 'py'));
+            arr.push(fDef.replace('json', 'py'));
         }
     });
     /*the autocomplete function takes two arguments,
