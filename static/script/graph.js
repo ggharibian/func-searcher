@@ -373,7 +373,7 @@ function updateView() {
             if (n.type == NodeTypes.File) {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.json', ''), size: n.display_size},
+                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.json', ''), size: n.display_size },
                     grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
                 });
@@ -381,7 +381,7 @@ function updateView() {
             else {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'folder', id: n.filepath, label: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING},
+                    data: { type: 'folder', id: n.filepath, label: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING },
                     grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
                 });
@@ -464,11 +464,33 @@ function updateView() {
         let tid = event.target.data('id');
         globalThis.currSelection.add(tid);
         globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
+
+        if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
+            console.log(tid);
+            let req = new XMLHttpRequest();
+            req.onreadystatechange = function () {
+                if (req.readyState == 4 && req.status == 200) {
+                    document.getElementById('code-loaded').innerHTML = `
+                    <pre>
+                        <code>
+                            ${req.responseText}
+                        </code>
+                    </pre>`;
+
+                    hljs.highlightAll();
+                    globalThis.displayedCode = tid;
+                }
+            }
+            req.open('GET', `http://localhost:5000/raw?fpath=${tid.replace('json', 'py')}`);
+            req.send();
+        }
     };
     let onUnselection = event => {
         let tid = event.target.data('id');
         globalThis.currSelection.delete(tid);
         globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': '#ccc' });
+        document.getElementById('code-loaded').innerHTML = '';
+        globalThis.displayedCode = undefined;
     };
 
     globalThis.ghostFolders.forEach(g => {

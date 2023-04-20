@@ -1,6 +1,9 @@
 <html>
 <script src="http://localhost:5000/graph.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+<link rel="stylesheet"
+      href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 <link rel="stylesheet" href="http://localhost:5000/graph.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +22,9 @@
                 </div>
             </form>
             <button onclick="onClearSelection()">Clear Selection</button>
+            <div id="code-loaded">
 
+            </div>
         </div>
     </div>
 </body>
