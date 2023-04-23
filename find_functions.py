@@ -1,14 +1,10 @@
 from enum import Enum
-from fnmatch import fnmatchcase
 import os
-from re import search
 import shutil
 from enum import Enum
 import json
 import ast
-from collections import deque
-
-from old import OUTPUT_FOLDER
+import string
 
 #FILEPATH = "./test"
 #FILEPATH = "/home/chirag/scikit-learn"
@@ -75,6 +71,8 @@ def prettify(ast_tree_str, indent=4):
     out += ''.join(ret) + '\n'
     return out
 
+BUILTIN_TYPES = [int, float, complex, list, tuple, range, str, bytes, bytearray, memoryview, set, frozenset, dict]
+
 # Parse a file
 # This is the first pass only (find all attributes)
 # Most dependencies will be resolved later
@@ -115,6 +113,14 @@ def parse_file(filepath):
             return get_fname_fully_qual(n.func)
 
         return ''
+
+    def get_method_chain(n):
+        if type(n) == ast.Call:
+            return [get_fname(n)[:-1]] + get_method_chain(n.func)
+        elif type(n) == ast.Attribute:
+            return get_method_chain(n.value)
+
+        return []
 
     # Helper method to get all dependencies of a node (whether symbolic, import, or function)
     def get_dependencies(v):
@@ -215,6 +221,7 @@ def parse_file(filepath):
                     function_call[fname]['line_num'] = [n.lineno]
                 else:
                     function_call[fname]['line_num'].append(n.lineno)
+                function_call[fname]['chain'] = get_method_chain(n.func)
         elif type(n) == ast.Assign:
             v = get_dependencies(n.value)
             for t in n.targets:
@@ -232,6 +239,12 @@ def parse_file(filepath):
                 return i, f
         return None
 
+    def check_builtins(f):
+        for t in BUILTIN_TYPES:
+            if f in dir(t):
+                return t
+        return None
+
     # Naively process some of the function calls for the simplest cases
     # Unknowns are more complex, to be handled later
     for f in function_call:
@@ -244,6 +257,9 @@ def parse_file(filepath):
             function_call[f]['alias'] = func_arr[-1]
         elif func_arr[-1] in dir(__builtins__): # Builtin
             function_call[f]['defined'] = 'builtin'
+            function_call[f]['alias'] = func_arr[-1]
+        elif check_builtins(func_arr[-1]): # Builtin type
+            function_call[f]['defined'] = check_builtins(func_arr[-1]).__name__
             function_call[f]['alias'] = func_arr[-1]
         elif check_imports(f) != None: # Imported module
             function_call[f]['defined'], function_call[f]['alias'] = check_imports(f)
@@ -276,8 +292,8 @@ class Node:
     children_clean = {}
     content = {}
 
-#FILEPATH = "/home/chirag/scikit-learn/asv_benchmarks/"
-FILEPATH = "/home/chirag/scikit-learn/"
+FILEPATH = "/home/chirag/scikit-learn/asv_benchmarks/"
+#FILEPATH = "/home/chirag/scikit-learn/"
 OUTPUT_FOLDER = './index'
 if os.path.exists(OUTPUT_FOLDER):
         shutil.rmtree(OUTPUT_FOLDER)
@@ -372,7 +388,16 @@ def guess_unknown_function_calls(root):
         for f in fc['FunctionCall']:
             if fc['FunctionCall'][f]['defined'] != 'unknown':
                 d = fc['FunctionCall'][f]['defined']
-                fc['FunctionCall'][f]['defined'] = set([fc['FunctionCall'][f]['defined']])
+                fc['FunctionCall'][f]['defined'] = set([d])
+
+        # Handle function calls that have a chain with a known dependency
+        for f in fc['FunctionCall']:
+            if fc['FunctionCall'][f]['defined'] == 'unknown':
+                if len(fc['FunctionCall'][f]['chain']) != 0:
+                    for c in fc['FunctionCall'][f]['chain']:
+                        if c in defined_symbol_set:
+                            fc['FunctionCall'][f]['defined'] = fc['FunctionCall'][c]['defined']
+                            break
 
         # Handle function calls that start with self.
         for f in fc['FunctionCall']:
@@ -421,18 +446,32 @@ def guess_unknown_function_calls(root):
             return ret
 
         # Handle function calls that are attributes of local variables
+        ftd = []
         for f in fc['FunctionCall']:
             if fc['FunctionCall'][f]['defined'] == 'unknown':
                 if len(f.split('.')) >= 2:
                     fc['FunctionCall'][f]['defined'] = evaluate_dependencies(f.split('.')[0])
+                    shortened_name = '.'.join(f.split('.')[1:])
+                    if shortened_name in fc['FunctionCall'] and fc['FunctionCall'][shortened_name]['defined'] == 'unknown':
+                        nf = fc['FunctionCall'][shortened_name]
+                        of = fc['FunctionCall'][f]
 
-        # Handle the remaining function calls
+                        nf['line_num'] += of['line_num']
+                        nf['defined'] = of['defined']
+                        ftd.append(f)
+        for f in ftd:
+            del fc['FunctionCall'][f]
+
+        # Convert back to list (to be JSON serializable)
         for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == 'unknown':
-                print(f)
+            fc['FunctionCall'][f]['defined'] = [fi for fi in fc['FunctionCall'][f]['defined']]
 
     for f in files:
         if f == 'benchmarks/common.json':
             guess_definitions(files[f].content)
+
+    for f in files:
+        with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
+            of.write(json.dumps(files[f].content))
 
 guess_unknown_function_calls(OUTPUT_FOLDER)
