@@ -255,14 +255,14 @@ def parse_file(filepath):
         elif func_arr[-1] in class_def: # Class name defined locally
             function_call[f]['defined'] = 'local'
             function_call[f]['alias'] = func_arr[-1]
+        elif check_imports(f) != None: # Imported module
+            function_call[f]['defined'], function_call[f]['alias'] = check_imports(f)
         elif func_arr[-1] in dir(__builtins__): # Builtin
             function_call[f]['defined'] = 'builtin'
             function_call[f]['alias'] = func_arr[-1]
         elif check_builtins(func_arr[-1]): # Builtin type
             function_call[f]['defined'] = check_builtins(func_arr[-1]).__name__
             function_call[f]['alias'] = func_arr[-1]
-        elif check_imports(f) != None: # Imported module
-            function_call[f]['defined'], function_call[f]['alias'] = check_imports(f)
         else:
             function_call[f]['defined'] = 'unknown'
             function_call[f]['alias'] = f
@@ -292,7 +292,7 @@ class Node:
     children_clean = {}
     content = {}
 
-FILEPATH = "/home/chirag/scikit-learn/asv_benchmarks/"
+FILEPATH = "/home/chirag/scikit-learn/sklearn/ensemble/"
 #FILEPATH = "/home/chirag/scikit-learn/"
 OUTPUT_FOLDER = './index'
 if os.path.exists(OUTPUT_FOLDER):
