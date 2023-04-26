@@ -202,7 +202,7 @@ def parse_file(filepath):
                     'level': n.level
                 }
         elif type(n) == ast.ClassDef:
-            bases = [ni.id for ni in get_name(n.bases)[:-1]] # Get all inherited classes (for use in resolving dependencies later)
+            bases = [get_name(ni)[:-1] for ni in n.bases] # Get all inherited classes (for use in resolving dependencies later)
             calls = []
             for ci in ast.walk(n):            # Get all functions called (no real reason for this, just nice to have)
                 if type(ci) == ast.Call:
@@ -268,12 +268,21 @@ def parse_file(filepath):
             function_call[f]['alias'] = f
             function_call[f]['full_call'] = f
 
+    # This is an init file, so we need to save what is in the module namespace
+    module_defs = []
+    if filepath.endswith('__init__.py'):
+        for n in ast.walk(ast.parse(text)):
+            if type(n) == ast.Assign:
+                if len([l for l in n.targets if type(l) == ast.Name and l.id == '__all__']) != 0:
+                    module_defs = [e.value for e in n.value.elts]
+
     output_json = {
         'FunctionDef': function_def,
         'FunctionCall': function_call,
         'Import': imports,
         'ClassDef': class_def,
-        'SymDef': symbol_deps
+        'SymDef': symbol_deps,
+        'ModDef': module_defs
     }
 
     #return prettify(ast.dump(ast.parse(text)))
@@ -292,11 +301,11 @@ class Node:
     children_clean = {}
     content = {}
 
-FILEPATH = "/home/chirag/scikit-learn/sklearn/ensemble/"
-#FILEPATH = "/home/chirag/scikit-learn/"
+#FILEPATH = "/home/chirag/scikit-learn/sklearn/ensemble/"
+FILEPATH = "/home/chirag/scikit-learn"
 OUTPUT_FOLDER = './index'
 if os.path.exists(OUTPUT_FOLDER):
-        shutil.rmtree(OUTPUT_FOLDER)
+    shutil.rmtree(OUTPUT_FOLDER)
 
 def generate_index(fp):
     for o in os.listdir(os.path.join(FILEPATH, fp)):
@@ -344,6 +353,11 @@ def guess_unknown_function_calls(root):
         new_node = Node()
         new_node.name = curr_key
         new_node.filepath = f"{parent.filepath}/{curr_key}"
+        new_node.parent = parent
+        new_node.children = {}
+        new_node.children_clean = {}
+        all_nodes[new_node.filepath] = new_node
+        parent.children[curr_key] = new_node
 
         if subtree[curr_key]['node-type'] == 'folder':
             for k in subtree[curr_key]['node-content'].keys():
@@ -354,7 +368,6 @@ def guess_unknown_function_calls(root):
             new_node.type = NodeTypes.FILE
             files[new_node.filepath] = new_node
             new_node.content = subtree[curr_key]['node-content']
-        all_nodes[new_node.filepath] = new_node
 
     root = Node()
     root.name = list(out.keys())[0]
@@ -370,6 +383,10 @@ def guess_unknown_function_calls(root):
         root.content = out[root.name]['node-content']
 
     all_nodes[root.filepath] = root
+    for nk in all_nodes:
+        n = all_nodes[nk]
+        for c in n.children.keys():
+            n.children_clean[c.replace('_', '')] = n.children[c]
 
     # Method to heuristically resolve where functions are defined
     def guess_definitions(fc):
@@ -419,8 +436,13 @@ def guess_unknown_function_calls(root):
         # Search strategy: BFS with memoization
         # Could use topo-sort, but would do a lot of unnecessary work
         # Handles function calls that are attributes of local variables
+        # We need to keep track of what has already been evaluated to handle
+        # cases where there are circular dependencies
         evaluated_dependencies = {}
-        def evaluate_dependencies(sym):
+        def evaluate_dependencies(sym, evaluated):
+            if sym in evaluated:
+                return set([])
+            evaluated.add(sym)
             if f in evaluated_dependencies:
                 return evaluated_dependencies[f]
 
@@ -438,9 +460,9 @@ def guess_unknown_function_calls(root):
             ret = set(())
             for d in fc['SymDef'][sym]:
                 # Evaluate dependencies two ways: both straight up and as attributes
-                ret = ret.union(evaluate_dependencies(d))
-                if len(d.split('.')) != 0:
-                    ret = ret.union(evaluate_dependencies(d.split('.')[0]))
+                ret = ret.union(evaluate_dependencies(d, evaluated))
+                if len(d.split('.')) > 1:
+                    ret = ret.union(evaluate_dependencies(d.split('.')[0], evaluated))
             evaluated_dependencies[sym] = ret
 
             return ret
@@ -450,7 +472,7 @@ def guess_unknown_function_calls(root):
         for f in fc['FunctionCall']:
             if fc['FunctionCall'][f]['defined'] == 'unknown':
                 if len(f.split('.')) >= 2:
-                    fc['FunctionCall'][f]['defined'] = evaluate_dependencies(f.split('.')[0])
+                    fc['FunctionCall'][f]['defined'] = evaluate_dependencies(f.split('.')[0], set(()))
                     shortened_name = '.'.join(f.split('.')[1:])
                     if shortened_name in fc['FunctionCall'] and fc['FunctionCall'][shortened_name]['defined'] == 'unknown':
                         nf = fc['FunctionCall'][shortened_name]
@@ -466,9 +488,62 @@ def guess_unknown_function_calls(root):
         for f in fc['FunctionCall']:
             fc['FunctionCall'][f]['defined'] = [fi for fi in fc['FunctionCall'][f]['defined']]
 
+    def resolve_import_path(n, i):
+        level, path = i
+        orig_fp = n.filepath
+        for j in range(level):
+            if n.parent != None:
+                n = n.parent
+            else:
+                return ''
+
+        path_list = path.split('.')
+        for ind, p in enumerate(path_list):
+            if p.replace('_', '') in n.children_clean:
+                n = n.children_clean[p.replace('_', '')]
+            elif p.replace('_', '')+'.json' in n.children_clean:
+                n = n.children_clean[p.replace('_', '') + '.json']
+            else:
+                if len(path_list) > 1 and ind == len(path_list) - 1 and n.filepath in files and n.filepath != orig_fp:
+                    return n.filepath
+                elif len(path_list) > 1 and ind == len(path_list) - 1 and n.filepath in folders and '__init__.json' in n.children:
+                    if p in n.children['__init__.json'].content['ModDef']:
+                        if p in n.children['__init__.json'].content['FunctionDef']: # Locally defined in __init__ (rare, but possible)
+                            return n.filepath
+                        ci = [ni for ni in n.children['__init__.json'].content['Import'].keys() if ni.endswith(p)]
+                        if len(ci) != 0:
+                            return resolve_import_path(n.children['__init__.json'], (n.children['__init__.json'].content['Import'][ci[0]]['level'], ci[0]))
+                    return ''
+                else:
+                    return ''
+        if n.filepath != orig_fp:
+            return n.filepath
+        return ''
+
+
+    def resolve_import_paths(f):
+        if f != 'scikit-learn/sklearn/ensemble/_forest.json':
+            return
+        fc = files[f].content
+        start_node = files[f]
+        for i in fc['Import']:
+            fc['Import'][i]['path'] = resolve_import_path(start_node, (fc['Import'][i]['level'], i))
+
+    def guess_definitions_global(fc):
+        for f in fc['FunctionCall']:
+            if fc['FunctionCall'][f]['defined'] == 'unknown':
+                print(f)
+
     for f in files:
-        if f == 'benchmarks/common.json':
-            guess_definitions(files[f].content)
+        guess_definitions(files[f].content)
+
+    for f in files:
+        resolve_import_paths(f)
+
+    # Global processing has to be done in a second pass because we need to first
+    # collapse function names if the function is an attribute of a local variable
+    #for f in files:
+    #    guess_definitions_global(files[f].content)
 
     for f in files:
         with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
