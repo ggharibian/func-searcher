@@ -4,7 +4,6 @@ import shutil
 from enum import Enum
 import json
 import ast
-import string
 
 #FILEPATH = "./test"
 #FILEPATH = "/home/chirag/scikit-learn"
@@ -509,7 +508,7 @@ def guess_unknown_function_calls(root):
                 elif len(path_list) > 1 and ind == len(path_list) - 1 and n.filepath in folders and '__init__.json' in n.children:
                     if p in n.children['__init__.json'].content['ModDef']:
                         if p in n.children['__init__.json'].content['FunctionDef']: # Locally defined in __init__ (rare, but possible)
-                            return n.filepath
+                            return f"{n.filepath}/__init__.json"
                         ci = [ni for ni in n.children['__init__.json'].content['Import'].keys() if ni.endswith(p)]
                         if len(ci) != 0:
                             return resolve_import_path(n.children['__init__.json'], (n.children['__init__.json'].content['Import'][ci[0]]['level'], ci[0]))
@@ -520,25 +519,47 @@ def guess_unknown_function_calls(root):
             return n.filepath
         return ''
 
-
     def resolve_import_paths(f):
-        if f != 'scikit-learn/sklearn/ensemble/_forest.json':
-            return
         fc = files[f].content
         start_node = files[f]
         for i in fc['Import']:
             fc['Import'][i]['path'] = resolve_import_path(start_node, (fc['Import'][i]['level'], i))
 
+    # We have no clue at all where this function is defined, try to resolve via
+    # searching local imports, then global (pip) imports
     def guess_definitions_global(fc):
         for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == 'unknown':
-                print(f)
+            if fc['FunctionCall'][f]['defined'] == []:
+                found_in_import = False
+                for i in fc['Import']:
+                    if fc['Import'][i]['path'] != '':
+                        for fd in files[fc['Import'][i]['path']].content['FunctionDef']:
+                            if fd == f or (len(f.split('.')) > 1 and f.split('.')[-1] == fd):
+                                fc['FunctionCall'][f]['defined'].append(fc['Import'][i]['path'])
+                                found_in_import = True
+
+                if not found_in_import:
+                    for file_comp in files:
+                        for fd in files[file_comp].content['FunctionDef']:
+                            if fd == f:
+                                fc['FunctionCall'][f]['defined'].append(file_comp)
 
     for f in files:
         guess_definitions(files[f].content)
 
     for f in files:
         resolve_import_paths(f)
+
+    for f in files:
+        guess_definitions_global(files[f].content)
+
+    num_function_calls = 0
+    num_undefined_calls = 0
+    for f in files:
+        for fc in files[f].content['FunctionCall']:
+            num_function_calls += 1
+            if files[f].content['FunctionCall'][fc]['defined'] == []:
+                num_undefined_calls += 1
 
     # Global processing has to be done in a second pass because we need to first
     # collapse function names if the function is an attribute of a local variable
