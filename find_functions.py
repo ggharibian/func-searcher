@@ -4,6 +4,7 @@ import shutil
 from enum import Enum
 import json
 import ast
+from graph_tool.all import *
 
 #FILEPATH = "./test"
 #FILEPATH = "/home/chirag/scikit-learn"
@@ -596,19 +597,54 @@ def postprocess_index(root):
         for fd in files[f].content['FunctionDef']:
            files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
 
-    f_to_called = {}
-    f_to_callers = {}
+    g = Graph()
+    f_to_v = {}
     for f in files:
         for fd in files[f].content['FunctionDef']:
-            f_to_called[f"{files[f].filepath}/{fd}"] = set(files[f].content['FunctionDef'][fd]['calls'])
-            for fc in f_to_called[f"{files[f].filepath}/{fd}"]:
-                if fc not in f_to_callers:
-                    f_to_callers[fc] = set([f"{files[f].filepath}/{fd}"])
-                else:
-                    f_to_callers[fc].add(f"{files[f].filepath}/{fd}")
+            if f"{files[f].filepath}/{fd}" not in f_to_v:
+                v = g.add_vertex()
+                f_to_v[f"{files[f].filepath}/{fd}"] = v
+            for c in set(files[f].content['FunctionDef'][fd]['calls']):
+                if c not in f_to_v:
+                    v = g.add_vertex()
+                    f_to_v[c] = v
 
-    print(f_to_called)
-    print(f_to_callers)
+    for f in files:
+        for fd in files[f].content['FunctionDef']:
+            for c in set(files[f].content['FunctionDef'][fd]['calls']):
+                g.add_edge(f_to_v[f"{files[f].filepath}/{fd}"], f_to_v[c])
+
+    pr = pagerank(g)
+    prl = [(f, pr[f_to_v[f]]) for f in f_to_v]
+    prl.sort(key=lambda x: -1*x[1])
+    print(prl[0:5])
+
+    '''
+    for f in files:
+        for fd in files[f].content['FunctionDef']:
+            for c in set(files[f].content['FunctionDef'][fd]['calls']):
+                print(f_to_id[f"{files[f].filepath}/{fd}"], c)
+                g.add_edge(f_to_id[f"{files[f].filepath}/{fd}"], c)
+    '''
+
+    '''
+    G = nx.Graph()
+    G.add_nodes_from(range(id))
+
+    for f in files:
+        for fd in files[f].content['FunctionDef']:
+            for c in set(files[f].content['FunctionDef'][fd]['calls']):
+                G.add_edge(f_to_id[f"{files[f].filepath}/{fd}"], c)
+
+    print('Graph node count: ', G.number_of_nodes())
+    print('Graph edge count: ', G.number_of_edges())
+    print('Graph connected components', len(list(nx.connected_components(G))))
+
+    for f1 in f_to_id.keys():
+        for f2 in f_to_id.keys():
+            if f1 != f2:
+                print(f1, f2, nx.simrank_similarity(G, f_to_id[f1], f_to_id[f2], tolerance=0.01))
+    '''
 
     for f in files:
         with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
