@@ -182,10 +182,21 @@ def parse_file(filepath):
             symbol_deps[t] = d
         # There are also calls, but it makes no sense at all: why would we assign to a call result???
 
+    def get_line_end(n):
+        ml = n.lineno
+        for ni in ast.walk(n):
+            if hasattr(ni, 'lineno'):
+                ml = max(ml, ni.lineno)
+        return ml
+
     # Iterate over the tree
     for n in tree:
         if type(n) == ast.FunctionDef:
-            function_def[n.name] = n.lineno
+            function_def[n.name] = {
+                'calls': [],
+                'lineno': n.lineno,
+                'line-end': get_line_end(n),
+            }
         elif type(n) == ast.Import:
             for a in n.names:
                 imports[f"{a.name}"] = {
@@ -208,6 +219,7 @@ def parse_file(filepath):
                     calls.append(get_fname(ci))
             class_def[n.name] = {
                 'lineno': n.lineno,
+                'linend': get_line_end(n),
                 'bases': bases,
                 'calls': [*set(calls)]
             }
@@ -319,7 +331,7 @@ def generate_index(fp):
 
 generate_index('')
 
-def guess_unknown_function_calls(root):
+def postprocess_index(root):
     out = {}
     def generate_index(fp, do):
         for o in os.listdir(os.path.join(root, fp)):
@@ -553,21 +565,53 @@ def guess_unknown_function_calls(root):
     for f in files:
         guess_definitions_global(files[f].content)
 
-    num_function_calls = 0
-    num_undefined_calls = 0
+    for f in files:
+        for i in files[f].content['Import']:
+            if files[f].content['Import'][i]['path'] == '':
+                files[f].content['Import'][i]['path'] = i
+
+    for f in files:
+        for fd in files[f].content['FunctionCall']:
+            fdc = files[f].content['FunctionCall'][fd]
+            nd = []
+            for d in fdc['defined']:
+                if d == 'local':
+                    nd.append(files[f].filepath)
+                elif d == 'builtin':
+                    nd.append('builtin')
+                elif d in files[f].content['Import']:
+                    nd.append(files[f].content['Import'][d]['path'])
+                else:
+                    nd.append(d)
+            fdc['defined'] = nd
+
     for f in files:
         for fc in files[f].content['FunctionCall']:
-            num_function_calls += 1
-            if files[f].content['FunctionCall'][fc]['defined'] == []:
-                num_undefined_calls += 1
+            ln = files[f].content['FunctionCall'][fc]['line_num']
+            for l in ln:
+                for fd in files[f].content['FunctionDef']:
+                    if l >= files[f].content['FunctionDef'][fd]['lineno'] and l <= files[f].content['FunctionDef'][fd]['line-end']:
+                        for d in files[f].content['FunctionCall'][fc]['defined']:
+                            files[f].content['FunctionDef'][fd]['calls'].append(f"{d}/{files[f].content['FunctionCall'][fc]['alias']}")
+        for fd in files[f].content['FunctionDef']:
+           files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
 
-    # Global processing has to be done in a second pass because we need to first
-    # collapse function names if the function is an attribute of a local variable
-    #for f in files:
-    #    guess_definitions_global(files[f].content)
+    f_to_called = {}
+    f_to_callers = {}
+    for f in files:
+        for fd in files[f].content['FunctionDef']:
+            f_to_called[f"{files[f].filepath}/{fd}"] = set(files[f].content['FunctionDef'][fd]['calls'])
+            for fc in f_to_called[f"{files[f].filepath}/{fd}"]:
+                if fc not in f_to_callers:
+                    f_to_callers[fc] = set([f"{files[f].filepath}/{fd}"])
+                else:
+                    f_to_callers[fc].add(f"{files[f].filepath}/{fd}")
+
+    print(f_to_called)
+    print(f_to_callers)
 
     for f in files:
         with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
             of.write(json.dumps(files[f].content))
 
-guess_unknown_function_calls(OUTPUT_FOLDER)
+postprocess_index(OUTPUT_FOLDER)
