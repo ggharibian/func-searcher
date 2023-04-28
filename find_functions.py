@@ -5,6 +5,11 @@ from enum import Enum
 import json
 import ast
 from graph_tool.all import *
+import numpy as np
+import similarity
+from multiprocessing import Pool
+from collections import Counter
+import time
 
 #FILEPATH = "./test"
 #FILEPATH = "/home/chirag/scikit-learn"
@@ -247,7 +252,7 @@ def parse_file(filepath):
 
     def check_imports(f):
         for i in imports:
-            if f.find(imports[i]['alias']) == 0:
+            if f"{f.find(imports[i]['alias'])}." == 0:
                 return i, f
         return None
 
@@ -332,6 +337,28 @@ def generate_index(fp):
 
 generate_index('')
 
+def sim_mapr(i, id_to_n):
+    N = len(id_to_n)
+    out = []
+    for j in range(i):
+        out.append(0)
+    out.append(1)
+    s1 = id_to_n[i]
+    for j in range(i+1, N):
+        i = 0
+        u = 0
+        s2 = id_to_n[j]
+        for w in s1:
+            u += 1
+            if w in s2:
+                i += 1
+        for w in s2:
+            if w not in s1:
+                u += 1
+
+        out.append(i / u)
+    return out
+
 def postprocess_index(root):
     out = {}
     def generate_index(fp, do):
@@ -400,6 +427,13 @@ def postprocess_index(root):
         for c in n.children.keys():
             n.children_clean[c.replace('_', '')] = n.children[c]
 
+    for f in files:
+        for fc in files[f].content['FunctionCall']:
+            if files[f].content['FunctionCall'][fc]['defined'] == 'unknown':
+                files[f].content['FunctionCall'][fc]['defined'] = set()
+            else:
+                files[f].content['FunctionCall'][fc]['defined'] = set([files[f].content['FunctionCall'][fc]['defined']])
+
     # Method to heuristically resolve where functions are defined
     def guess_definitions(fc):
         # Get the initial line number of each class definition
@@ -412,12 +446,6 @@ def postprocess_index(root):
             if fc['FunctionCall'][f]['defined'] != 'unknown':
                 defined_symbol_set.add(f)
         import_alias_set = {fc['Import'][i]['alias'] for i in fc['Import']}
-
-        # Convert defined into set
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] != 'unknown':
-                d = fc['FunctionCall'][f]['defined']
-                fc['FunctionCall'][f]['defined'] = set([d])
 
         # Handle function calls that have a chain with a known dependency
         for f in fc['FunctionCall']:
@@ -556,6 +584,8 @@ def postprocess_index(root):
                         for fd in files[file_comp].content['FunctionDef']:
                             if fd == f:
                                 fc['FunctionCall'][f]['defined'].append(file_comp)
+                if 'clf_type' in fc:
+                    print(files[f].content['FunctionCall'][fd])
 
     for f in files:
         guess_definitions(files[f].content)
@@ -593,31 +623,63 @@ def postprocess_index(root):
                 for fd in files[f].content['FunctionDef']:
                     if l >= files[f].content['FunctionDef'][fd]['lineno'] and l <= files[f].content['FunctionDef'][fd]['line-end']:
                         for d in files[f].content['FunctionCall'][fc]['defined']:
-                            files[f].content['FunctionDef'][fd]['calls'].append(f"{d}/{files[f].content['FunctionCall'][fc]['alias']}")
+                            files[f].content['FunctionDef'][fd]['calls'].append(f"{d}|{files[f].content['FunctionCall'][fc]['alias']}")
         for fd in files[f].content['FunctionDef']:
            files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
 
     g = Graph()
     f_to_v = {}
+    id_to_f = []
+    f_to_id = {}
+    id = 0
     for f in files:
         for fd in files[f].content['FunctionDef']:
-            if f"{files[f].filepath}/{fd}" not in f_to_v:
+            if f"{files[f].filepath}|{fd}" not in f_to_v:
                 v = g.add_vertex()
-                f_to_v[f"{files[f].filepath}/{fd}"] = v
+                f_to_v[f"{files[f].filepath}|{fd}"] = v
+                f_to_id[f"{files[f].filepath}|{fd}"] = id
+                id_to_f.append(f"{files[f].filepath}|{fd}")
+                id += 1
             for c in set(files[f].content['FunctionDef'][fd]['calls']):
                 if c not in f_to_v:
                     v = g.add_vertex()
                     f_to_v[c] = v
+                    f_to_id[c] = id
+                    id_to_f.append(c)
+                    id += 1
+
+
+    # Compute similiarity metrics
+    fname_mat = np.identity(id)
+
+    id_to_nlist = []
+    for i in range(id):
+        id_to_nlist.append(id_to_f[i].split('|')[1].split('_'))
+    with Pool(8) as p:
+        fname_mat = np.asarray(p.starmap(sim_mapr, [(i, id_to_nlist) for i in range(id)]))
+    fname_mat = fname_mat + fname_mat.transpose() - np.identity(id)
+
+    sim_mat = fname_mat
+    '''
+    adj_mat = np.identity(id)
 
     for f in files:
         for fd in files[f].content['FunctionDef']:
             for c in set(files[f].content['FunctionDef'][fd]['calls']):
-                g.add_edge(f_to_v[f"{files[f].filepath}/{fd}"], f_to_v[c])
+                g.add_edge(f_to_v[f"{files[f].filepath}|{fd}"], f_to_v[c])
+                adj_mat[f_to_id[f"{files[f].filepath}|{fd}"]][f_to_id[c]] = 1
 
     pr = pagerank(g)
     prl = [(f, pr[f_to_v[f]]) for f in f_to_v]
     prl.sort(key=lambda x: -1*x[1])
-    print(prl[0:5])
+    print('Most important functions: ', [p[0].split('|')[1] for p in prl[0:10]])
+
+
+    simrank.simrank(adj_mat, id)
+    '''
+    #sim = vertex_similarity(g)
+    #siml = [(f, sim[f_to_v[f]]) for f in f_to_v]
+    #print(siml)
 
     '''
     for f in files:
@@ -645,6 +707,9 @@ def postprocess_index(root):
             if f1 != f2:
                 print(f1, f2, nx.simrank_similarity(G, f_to_id[f1], f_to_id[f2], tolerance=0.01))
     '''
+    np.save(os.path.join(OUTPUT_FOLDER, 'sim_mat'), sim_mat)
+    with open(os.path.join(OUTPUT_FOLDER, 'file_key.txt'), 'w') as of:
+        of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))
 
     for f in files:
         with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
