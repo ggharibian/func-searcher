@@ -2,7 +2,7 @@ import numpy as np
 import os
 import json
 
-OUTPUT_FOLDER = './index'
+OUTPUT_FOLDER = ''
 def simrank(adj_mat, N):
     d12 = np.zeros((N, N))
     for i in range(N):
@@ -23,4 +23,4 @@ def get_similarity(fname):
     for f, c in mr[1:6]:
         print(i_to_f[f], c)
 
-get_similarity("scikit-learn/sklearn/linear_model/_linear_loss.json|weight_intercept")
+#get_similarity("scikit-learn/sklearn/linear_model/_linear_loss.json|weight_intercept")

@@ -2,6 +2,19 @@ function postDataComplete() {
     document.getElementById('status').innerHTML = 'Done uploading';
     document.getElementById('pbar').innerHTML = '';
 }
+
+function finalizeUpload() {
+    document.getElementById('status').innerHTML = 'Indexing...';
+    let req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+        if (req.readyState == 4 && req.status == 200) {
+            postDataComplete();
+        }
+    }
+    req.open('POST', 'http://localhost:5000/postprocess');
+    req.send();
+}
+
 function onFolderSelect() {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -20,7 +33,7 @@ function onFolderSelect() {
                         document.getElementById('pbarv').value = globalThis.recvCount;
 
                         if (globalThis.recvCount == document.getElementById('ctrl').files.length) {
-                            postDataComplete();
+                            finalizeUpload();
                         }
                     }
                     else if (r.readyState == 4) {

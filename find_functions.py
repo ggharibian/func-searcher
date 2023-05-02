@@ -4,7 +4,7 @@ import shutil
 from enum import Enum
 import json
 import ast
-from graph_tool.all import *
+#from graph_tool.all import *
 import numpy as np
 import similarity
 from multiprocessing import Pool
@@ -15,6 +15,8 @@ import time
 #FILEPATH = "/home/chirag/scikit-learn"
 #OUTPUT_FOLDER = "./index/"
 
+FILEPATH=''
+OUTPUT_FOLDER = ''
 # Helper method to prettify AST Outputs
 def prettify(ast_tree_str, indent=4):
     ret = []
@@ -198,6 +200,11 @@ def parse_file(filepath):
     # Iterate over the tree
     for n in tree:
         if type(n) == ast.FunctionDef:
+            #bl = {}
+            #for ni in ast.walk(n.body):
+            #    bl[str(type(ni))] = bl.get(str(type(ni)), 0) + 1
+            #print(n.name, bl)
+
             function_def[n.name] = {
                 'calls': [],
                 'lineno': n.lineno,
@@ -319,10 +326,10 @@ class Node:
     content = {}
 
 #FILEPATH = "/home/chirag/scikit-learn/sklearn/ensemble/"
-FILEPATH = "/home/chirag/scikit-learn"
-OUTPUT_FOLDER = './index'
-if os.path.exists(OUTPUT_FOLDER):
-    shutil.rmtree(OUTPUT_FOLDER)
+#FILEPATH = "/home/chirag/scikit-learn"
+#OUTPUT_FOLDER = './index'
+#if os.path.exists(OUTPUT_FOLDER):
+#    shutil.rmtree(OUTPUT_FOLDER)
 
 def generate_index(fp):
     for o in os.listdir(os.path.join(FILEPATH, fp)):
@@ -335,7 +342,7 @@ def generate_index(fp):
         else:
             generate_index(os.path.join(fp, o))
 
-generate_index('')
+#generate_index('')
 
 def sim_mapr(i, id_to_n):
     N = len(id_to_n)
@@ -360,7 +367,10 @@ def sim_mapr(i, id_to_n):
     return out
 
 def postprocess_index(root):
+    print('Postprocessing index: ', root)
+
     out = {}
+    out_path = root
     def generate_index(fp, do):
         for o in os.listdir(os.path.join(root, fp)):
             if os.path.isfile(os.path.join(os.path.join(root, fp), o)):
@@ -627,23 +637,23 @@ def postprocess_index(root):
         for fd in files[f].content['FunctionDef']:
            files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
 
-    g = Graph()
+    # g = Graph()
     f_to_v = {}
     id_to_f = []
     f_to_id = {}
     id = 0
     for f in files:
         for fd in files[f].content['FunctionDef']:
-            if f"{files[f].filepath}|{fd}" not in f_to_v:
-                v = g.add_vertex()
-                f_to_v[f"{files[f].filepath}|{fd}"] = v
+            if f"{files[f].filepath}|{fd}" not in f_to_id:
+                #v = g.add_vertex()
+                # f_to_v[f"{files[f].filepath}|{fd}"] = v
                 f_to_id[f"{files[f].filepath}|{fd}"] = id
                 id_to_f.append(f"{files[f].filepath}|{fd}")
                 id += 1
             for c in set(files[f].content['FunctionDef'][fd]['calls']):
-                if c not in f_to_v:
-                    v = g.add_vertex()
-                    f_to_v[c] = v
+                if c not in f_to_id:
+                    #v = g.add_vertex()
+                    # f_to_v[c] = v
                     f_to_id[c] = id
                     id_to_f.append(c)
                     id += 1
@@ -707,12 +717,12 @@ def postprocess_index(root):
             if f1 != f2:
                 print(f1, f2, nx.simrank_similarity(G, f_to_id[f1], f_to_id[f2], tolerance=0.01))
     '''
-    np.save(os.path.join(OUTPUT_FOLDER, 'sim_mat'), sim_mat)
-    with open(os.path.join(OUTPUT_FOLDER, 'file_key.txt'), 'w') as of:
+    np.save(os.path.join(out_path, 'sim_mat'), sim_mat)
+    with open(os.path.join(out_path, 'file_key.txt'), 'w') as of:
         of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))
 
     for f in files:
-        with open(os.path.join(OUTPUT_FOLDER, f), 'w') as of:
+        with open(os.path.join(out_path, f), 'w') as of:
             of.write(json.dumps(files[f].content))
 
-postprocess_index(OUTPUT_FOLDER)
+#postprocess_index(OUTPUT_FOLDER)

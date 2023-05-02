@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 import find_functions
+import similarity
 
 OUTPUT_FOLDER_PROCESSED = "./index/"
 OUTPUT_FOLDER_RAW = "./raw/"
@@ -65,13 +66,19 @@ def process_file():
 
     return ''
 
+@app.route("/postprocess", methods=['POST'])
+def postprocess_files():
+    find_functions.postprocess_index(OUTPUT_FOLDER_PROCESSED)
+
+    return ''
+
 @app.route("/files", methods=["GET"])
 def get_files():
     out = {}
 
     def generate_index(fp, do):
         for o in os.listdir(os.path.join(OUTPUT_FOLDER_PROCESSED, fp)):
-            if os.path.isfile(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)):
+            if os.path.isfile(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)) and o.endswith('.json'):
                 with open(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)) as f:
                     p1 = os.path.join(fp, o)
                     p2 = json.loads(f.readline())
@@ -81,7 +88,7 @@ def get_files():
                         'node-type': 'file',
                         'node-content': p2
                     }
-            else:
+            elif os.path.isdir(os.path.join(os.path.join(OUTPUT_FOLDER_PROCESSED, fp), o)):
                 p1 = os.path.join(fp, o)
                 do[o] = {
                     'file-name': o,
