@@ -460,6 +460,14 @@ function updateView() {
         }
     };
 
+    function checkStr(s, r) {
+        let m = s.match(r);
+        if (m != null) {
+            return m.length;
+        }
+        return 0;
+    }
+
     let onSelection = event => {
         let tid = event.target.data('id');
         globalThis.currSelection.add(tid);
@@ -470,14 +478,37 @@ function updateView() {
             let req = new XMLHttpRequest();
             req.onreadystatechange = function () {
                 if (req.readyState == 4 && req.status == 200) {
+                    let ln = 1;
+                    const re = new RegExp('\n', 'g');
+                    console.log(Prism.tokenize(req.responseText, Prism.languages['python']));
+                    Prism.tokenize(req.responseText, Prism.languages['python']).forEach(t => {
+                        console.log(t);
+                        console.log(ln);
+                        if (t.hasOwnProperty('content')) {
+                            if (typeof t.content == 'string') {
+                                ln += checkStr(t.content, re);
+                            }
+                            else {
+                                ln += t.content.reduce(
+                                    (a, cv) => a + checkStr(cv, re),
+                                    0
+                                );
+                            }
+                        }
+                        else {
+                            ln += checkStr(t, re);
+                        }
+                    });
                     document.getElementById('code-loaded').innerHTML = `
                     <pre>
-                        <code>
+                        <code class="language-python">
                             ${req.responseText}
                         </code>
                     </pre>`;
+                    Prism.highlightAll();
+                    //hljs.highlightAll();
+                    //hljs.initLineNumbersOnLoad();
 
-                    hljs.highlightAll();
                     globalThis.displayedCode = tid;
                 }
             }

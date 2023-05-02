@@ -39,6 +39,14 @@ def graph_js():
 def graph_css():
     return send_from_directory('static/styles', 'graph.css')
 
+@app.route("/prism.js")
+def prism_js():
+    return send_from_directory('static/script', 'prism.js')
+
+@app.route("/prism.css")
+def prism_css():
+    return send_from_directory('static/styles', 'prism.css')
+
 @app.route("/background.png")
 def background_img():
     return send_from_directory('static/assets', 'background.png')

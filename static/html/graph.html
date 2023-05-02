@@ -1,9 +1,16 @@
 <html>
 <script src="http://localhost:5000/graph.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
-<link rel="stylesheet"
-      href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
-<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+
+<!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.0/themes/prism.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.5.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.17.1/components/prism-python.min.js"></script>
+<link rel="stylesheet" href="plugins/line-numbers/prism-line-numbers.css" data-noprefix />
+<script src="plugins/line-numbers/prism-line-numbers.js"></script>-->
+<link rel="stylesheet" href="http://localhost:5000/prism.css">
+<script src="http://localhost:5000/prism.js"></script>
+
 <link rel="stylesheet" href="http://localhost:5000/graph.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,15 +22,26 @@
 <body onload="goToView()">
     <div class="content">
         <div id="main-content">
-            <div id="cy"></div>
-            <form autocomplete="off">
-                <div class="autocomplete" style="width:1000px;">
-                    <input id="func-search" type="text" name="funcSearch" placeholder="Search for function..." class="func-input">
+            <div class="graph" id="cy"></div>
+            <div class="sidebar">
+                <div class="graph-side">
+                    <div class="zoom-row">
+                        <div class="zoom-text">Zoom:</div>
+                        <input type="range" min="1" max="100" value="50" class="slider" id="zoom-slider">
+                    </div>
+                    <div class="button-row">
+                        <button onclick="onClearSelection()">Clear Selection</button>
+                        <button>Center Graph</button>
+                    </div>
+                    <form autocomplete="off">
+                        <div class="autocomplete">
+                            <input id="func-search" type="text" name="funcSearch" placeholder="Search for function..."
+                                class="func-input">
+                        </div>
+                    </form>
                 </div>
-            </form>
-            <button onclick="onClearSelection()">Clear Selection</button>
-            <div id="code-loaded">
-
+                <div id="code-loaded">
+                </div>
             </div>
         </div>
     </div>

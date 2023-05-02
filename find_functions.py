@@ -204,12 +204,16 @@ def parse_file(filepath):
             #for ni in ast.walk(n.body):
             #    bl[str(type(ni))] = bl.get(str(type(ni)), 0) + 1
             #print(n.name, bl)
+            if n.name in function_def:
+                function_def[n.name]['lineno'].append(n.lineno)
+                function_def[n.name]['line-end'].append(get_line_end(n))
+            else:
+                function_def[n.name] = {
+                    'calls': [],
+                    'lineno': [n.lineno],
+                    'line-end': [get_line_end(n)],
+                }
 
-            function_def[n.name] = {
-                'calls': [],
-                'lineno': n.lineno,
-                'line-end': get_line_end(n),
-            }
         elif type(n) == ast.Import:
             for a in n.names:
                 imports[f"{a.name}"] = {
@@ -631,9 +635,10 @@ def postprocess_index(root):
             ln = files[f].content['FunctionCall'][fc]['line_num']
             for l in ln:
                 for fd in files[f].content['FunctionDef']:
-                    if l >= files[f].content['FunctionDef'][fd]['lineno'] and l <= files[f].content['FunctionDef'][fd]['line-end']:
-                        for d in files[f].content['FunctionCall'][fc]['defined']:
-                            files[f].content['FunctionDef'][fd]['calls'].append(f"{d}|{files[f].content['FunctionCall'][fc]['alias']}")
+                    for s, e in zip(files[f].content['FunctionDef'][fd]['lineno'], files[f].content['FunctionDef'][fd]['line-end']):
+                        if l >= s and l <= e:
+                            for d in files[f].content['FunctionCall'][fc]['defined']:
+                                files[f].content['FunctionDef'][fd]['calls'].append(f"{d}|{files[f].content['FunctionCall'][fc]['alias']}")
         for fd in files[f].content['FunctionDef']:
            files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
 

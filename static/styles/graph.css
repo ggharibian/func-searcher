@@ -1,18 +1,129 @@
-#cy
-{
-  width: 1000px;
-  height: 800px;
-  display: block;
+body {
+  margin: 0;
+  font-family: 'Lato', 'sans-serif';
 }
 
-/* https://www.w3schools.com/howto/howto_js_autocomplete.asp */
+.graph {
+  width: 65%;
+  height: 100vh;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.main-content {
+  margin: 0;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 35%;
+  height: 100vh;
+  background-color: #a9a9a9;
+}
+
+.graph-side {
+  padding: 15px;
+  background-color: #03254E;
+}
+
+#code-loaded {
+  height: 85vh;
+  overflow-y: auto;
+}
+
+.zoom-text {
+  position: absolute;
+  left: 0;
+}
+
+.zoom-row {
+  position: relative;
+  color: white;
+  font-weight: 400;
+  font-size: 24px;
+  margin-bottom: 18px;
+}
+
+.button-row {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-evenly;
+}
+
+.slider {
+  position: relative;
+  left: 7vw;
+  top: 8px;
+  -webkit-appearance: none;
+  width: 22vw;
+  opacity: 0.7;
+  border-radius: 5px;
+  height: 5px;
+  background: #a9a9a9;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+.slider:hover {
+  opacity: 1;
+}
+
+.autocomplete {
+  width: 100%;
+}
 .func-input {
-  width: 1000px;
+  width: 100%;
+  height: 30px;
+}
+.autocomplete-items {
+  color: #ffffff;
+  background-color: #a9a9a9;
+  padding: 5px;
+  cursor: pointer;
 }
 .autocomplete-items div:hover {
-  background-color: #e9e9e9;
+  background-color: #03254E;
 }
 .autocomplete-active {
-  background-color: DodgerBlue !important;
+  background-color: #03254E !important;
   color: #ffffff;
 }
+
+button {
+  background-color: white;
+  border: 2px solid white;
+  padding: 10px;
+  font-size: 20px;
+  color: #03254E;
+  cursor:pointer;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+button:hover {
+  background-color: #03254E;
+  color: white;
+}
+
+
