@@ -385,8 +385,27 @@ function removeChildRenderRestriction(n) {
 }
 
 function onFunctionClick(file, ft, f) {
-    console.log(f);
-    console.log(globalThis.nodes[file].content);
+
+    let req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+        if (req.readyState == 4 && req.status == 200) {
+            const popup = document.createElement("div");
+            popup.innerHTML = `
+                <h1>${f}</h1>
+                <div class='popup-toprow'>
+                    <div class='popup-toprow-elem'>Defined</div>
+                    <div class='popup-toprow-elem'>Other Calls</div>
+                </div>
+                <div>
+                    ${JSON.parse(req.responseText).map(m => `<div>${m[0]}</div>`)}
+                </div>
+            `;
+            popup.classList.add('popup');
+            document.getElementById('main-content').appendChild(popup);
+        }
+    }
+    req.open('GET', `http://localhost:5000/similar?file=${file}&function=${f}`);
+    req.send();
 }
 
 function updateView() {
@@ -524,7 +543,7 @@ function updateView() {
 
                     while (text.indexOf('\n') != -1) {
                         os += processLine(text.substring(0, text.indexOf('\n')), ln);
-                        text = text.substring(text.indexOf('\n')+1);
+                        text = text.substring(text.indexOf('\n') + 1);
                         ln++;
                     }
                     os += processLine(text, ln);
@@ -619,12 +638,12 @@ function updateView() {
 }
 
 function updateSlider() {
-    document.getElementById('zoom-slider').value = (globalThis.cy.zoom() - 0.03) * 100 / (8.5-0.03);
+    document.getElementById('zoom-slider').value = (globalThis.cy.zoom() - 0.03) * 100 / (8.5 - 0.03);
 }
 
 function onZoomSliderChange() {
     let nv = document.getElementById('zoom-slider').value;
-    globalThis.cy.zoom(nv / 100 * (8.5-0.03) + 0.03);
+    globalThis.cy.zoom(nv / 100 * (8.5 - 0.03) + 0.03);
 }
 
 function updateGraphViewOnZoom() {

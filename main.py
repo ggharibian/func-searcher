@@ -110,6 +110,10 @@ def get_files():
 
     return out
 
+@app.route("/similar", methods=["GET"])
+def get_similar_functions():
+    return similarity.get_similarity(OUTPUT_FOLDER_PROCESSED, f"{request.args['file']}|{request.args['function']}")
+
 @app.route("/raw", methods=["GET"])
 def get_file():
     return send_from_directory(OUTPUT_FOLDER_RAW, request.args['fpath'])
