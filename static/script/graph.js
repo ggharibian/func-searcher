@@ -4,6 +4,11 @@ const NodeTypes = {
     Directory: 1
 }
 
+const FunctionType = {
+    Call: 0,
+    Definition: 1
+}
+
 class FileNode {
     parent = undefined;
     type = undefined;
@@ -25,6 +30,7 @@ class FileNode {
     content = undefined;
     dependencies = new Set();
     dependents = new Set();
+    lineno_map = {};
 }
 
 const SIZE_SCALE_FACTOR = 20;
@@ -141,6 +147,24 @@ function getNodes(curr_node_key, subtree, node_dict, folder_dict, parent) {
         new_node.display_size = SIZE_SCALE_FACTOR;
         new_node.w = SIZE_SCALE_FACTOR + DISPLAY_PADDING;
         new_node.h = SIZE_SCALE_FACTOR + DISPLAY_PADDING;
+        new_node.lineno_map = {};
+
+        Object.keys(new_node.content['FunctionCall']).forEach(fc => {
+            new_node.content['FunctionCall'][fc]['line_num'].forEach(fcn => {
+                if (!new_node.lineno_map.hasOwnProperty(fcn)) {
+                    new_node.lineno_map[fcn] = [];
+                }
+                new_node.lineno_map[fcn].push([FunctionType.Call, fc]);
+            });
+        });
+        Object.keys(new_node.content['FunctionDef']).forEach(fc => {
+            new_node.content['FunctionDef'][fc]['lineno'].forEach(fdn => {
+                if (!new_node.lineno_map.hasOwnProperty(fdn)) {
+                    new_node.lineno_map[fdn] = [];
+                }
+                new_node.lineno_map[fdn].push([FunctionType.Definition, fc]);
+            });
+        });
     }
     else if (subtree[curr_node_key]['node-type'] == 'folder') {
         new_node.type = NodeTypes.Directory;
@@ -360,6 +384,11 @@ function removeChildRenderRestriction(n) {
     }
 }
 
+function onFunctionClick(file, ft, f) {
+    console.log(f);
+    console.log(globalThis.nodes[file].content);
+}
+
 function updateView() {
     globalThis.cy.elements().remove();
 
@@ -474,16 +503,58 @@ function updateView() {
         globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
 
         if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
-            console.log(tid);
             let req = new XMLHttpRequest();
             req.onreadystatechange = function () {
                 if (req.readyState == 4 && req.status == 200) {
                     let ln = 1;
-                    const re = new RegExp('\n', 'g');
-                    console.log(Prism.tokenize(req.responseText, Prism.languages['python']));
+                    let text = req.responseText;
+                    let os = '';
+                    const processLine = (line, num) => {
+                        line = line.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                            .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
+                            .replaceAll('\t', '&emsp').replaceAll(' ', '&nbsp');
+                        if (globalThis.nodes[tid].lineno_map.hasOwnProperty(num)) {
+                            globalThis.nodes[tid].lineno_map[num].forEach(c => {
+                                line = line.replaceAll(c[1], `<span class="function-code" onclick="onFunctionClick('${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
+                            });
+                        }
+
+                        return `${line}<br>`;
+                    };
+
+                    while (text.indexOf('\n') != -1) {
+                        os += processLine(text.substring(0, text.indexOf('\n')), ln);
+                        text = text.substring(text.indexOf('\n')+1);
+                        ln++;
+                    }
+                    os += processLine(text, ln);
+
+                    /*
                     Prism.tokenize(req.responseText, Prism.languages['python']).forEach(t => {
-                        console.log(t);
+                        let currString = t;
+                        if (t.hasOwnProperty('content')) {
+                            if (typeof t.content == 'string') {
+                                currString = t.content;
+                            }
+                            else {
+                                currString = t.content.reduce(
+                                    (a, cv) => a + cv,
+                                    ''
+                                );
+                            }
+                        }
+                        currString = currString.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                            .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
                         console.log(ln);
+                        console.log(globalThis.nodes[tid].lineno_map);
+                        console.log(currString);
+                        if (globalThis.nodes[tid].lineno_map.hasOwnProperty(ln)) {
+                            globalThis.nodes[tid].lineno_map[ln].forEach(c => {
+                                currString.replaceAll(c, `<span onclick="onFunctionClick(${c})">${c}</span>`)
+                            });
+                        }
+                        os += currString;
+
                         if (t.hasOwnProperty('content')) {
                             if (typeof t.content == 'string') {
                                 ln += checkStr(t.content, re);
@@ -498,13 +569,19 @@ function updateView() {
                         else {
                             ln += checkStr(t, re);
                         }
+
+
                     });
+                    */
+                    document.getElementById('code-loaded').innerHTML = os;
+                    /*
                     document.getElementById('code-loaded').innerHTML = `
                     <pre>
                         <code class="language-python">
                             ${req.responseText}
                         </code>
-                    </pre>`;
+                    </pre>`;*/
+
                     Prism.highlightAll();
                     //hljs.highlightAll();
                     //hljs.initLineNumbersOnLoad();

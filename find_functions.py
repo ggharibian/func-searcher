@@ -663,7 +663,6 @@ def postprocess_index(root):
                     id_to_f.append(c)
                     id += 1
 
-
     # Compute similiarity metrics
     fname_mat = np.identity(id)
 

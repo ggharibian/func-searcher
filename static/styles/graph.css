@@ -127,3 +127,7 @@ button:hover {
 }
 
 
+.function-code {
+  color: red;
+  cursor: pointer;
+}
