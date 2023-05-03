@@ -618,6 +618,15 @@ function updateView() {
     globalThis.cy.on('unselect', 'node', onUnselection);
 }
 
+function updateSlider() {
+    document.getElementById('zoom-slider').value = (globalThis.cy.zoom() - 0.03) * 100 / (8.5-0.03);
+}
+
+function onZoomSliderChange() {
+    let nv = document.getElementById('zoom-slider').value;
+    globalThis.cy.zoom(nv / 100 * (8.5-0.03) + 0.03);
+}
+
 function updateGraphViewOnZoom() {
     globalThis.cy.elements().remove();
     updateNodesInView(globalThis.cy.extent().h);
@@ -968,10 +977,14 @@ function goToView() {
 
                 ]
             });
+            globalThis.cy.minZoom(0.03);
+            globalThis.cy.maxZoom(8.5);
             globalThis.cy.on('zoom', updateGraphViewOnZoom);
             globalThis.nodesInView = [root_node];
+            updateSlider();
 
             updateGraphViewOnZoom(undefined);
+            globalThis.cy.center();
         }
     }
     req.open('GET', 'http://localhost:5000/files');

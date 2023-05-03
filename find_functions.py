@@ -1,5 +1,6 @@
 from enum import Enum
 import os
+from pickle import GLOBAL
 import shutil
 from enum import Enum
 import json
@@ -79,7 +80,8 @@ def prettify(ast_tree_str, indent=4):
     return out
 
 BUILTIN_TYPES = [int, float, complex, list, tuple, range, str, bytes, bytearray, memoryview, set, frozenset, dict]
-
+MODULE_BUILTINS = ['__class__', '__contains__', '__delattr__', '__delitem__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__getitem__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__iter__', '__le__', '__len__', '__lt__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__reversed__', '__setattr__', '__setitem__', '__sizeof__', '__str__', '__subclasshook__', 'clear', 'copy', 'fromkeys', 'get', 'items', 'keys', 'pop', 'popitem', 'setdefault', 'update', 'values']
+GLOBAL_BUILTINS  = ['ArithmeticError', 'AssertionError', 'AttributeError', 'BaseException', 'BlockingIOError', 'BrokenPipeError', 'BufferError', 'BytesWarning', 'ChildProcessError', 'ConnectionAbortedError', 'ConnectionError', 'ConnectionRefusedError', 'ConnectionResetError', 'DeprecationWarning', 'EOFError', 'Ellipsis', 'EnvironmentError', 'Exception', 'False', 'FileExistsError', 'FileNotFoundError', 'FloatingPointError', 'FutureWarning', 'GeneratorExit', 'IOError', 'ImportError', 'ImportWarning', 'IndentationError', 'IndexError', 'InterruptedError', 'IsADirectoryError', 'KeyError', 'KeyboardInterrupt', 'LookupError', 'MemoryError', 'ModuleNotFoundError', 'NameError', 'None', 'NotADirectoryError', 'NotImplemented', 'NotImplementedError', 'OSError', 'OverflowError', 'PendingDeprecationWarning', 'PermissionError', 'ProcessLookupError', 'RecursionError', 'ReferenceError', 'ResourceWarning', 'RuntimeError', 'RuntimeWarning', 'StopAsyncIteration', 'StopIteration', 'SyntaxError', 'SyntaxWarning', 'SystemError', 'SystemExit', 'TabError', 'TimeoutError', 'True', 'TypeError', 'UnboundLocalError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeError', 'UnicodeTranslateError', 'UnicodeWarning', 'UserWarning', 'ValueError', 'Warning', 'ZeroDivisionError', '__build_class__', '__debug__', '__doc__', '__import__', '__loader__', '__name__', '__package__', '__spec__', 'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'breakpoint', 'bytearray', 'bytes', 'callable', 'chr', 'classmethod', 'compile', 'complex', 'copyright', 'credits', 'delattr', 'dict', 'dir', 'divmod', 'enumerate', 'eval', 'exec', 'exit', 'filter', 'float', 'format', 'frozenset', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len', 'license', 'list', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'print', 'property', 'quit', 'range', 'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip']
 # Parse a file
 # This is the first pass only (find all attributes)
 # Most dependencies will be resolved later
@@ -264,7 +266,7 @@ def parse_file(filepath):
     def check_imports(f):
         for i in imports:
             if f"{f.find(imports[i]['alias'])}." == 0:
-                return i, f
+                return [i], f
         return None
 
     def check_builtins(f):
@@ -278,21 +280,21 @@ def parse_file(filepath):
     for f in function_call:
         func_arr = f.split('.')
         if func_arr[-1] in function_def: # Function name defined locally
-            function_call[f]['defined'] = 'local'
+            function_call[f]['defined'] = ['local']
             function_call[f]['alias'] = func_arr[-1]
         elif func_arr[-1] in class_def: # Class name defined locally
-            function_call[f]['defined'] = 'local'
+            function_call[f]['defined'] = ['local']
             function_call[f]['alias'] = func_arr[-1]
         elif check_imports(f) != None: # Imported module
             function_call[f]['defined'], function_call[f]['alias'] = check_imports(f)
-        elif func_arr[-1] in dir(__builtins__): # Builtin
-            function_call[f]['defined'] = 'builtin'
+        elif func_arr[-1] in GLOBAL_BUILTINS or func_arr[-1] in MODULE_BUILTINS: # Builtin
+            function_call[f]['defined'] = ['builtin']
             function_call[f]['alias'] = func_arr[-1]
         elif check_builtins(func_arr[-1]): # Builtin type
-            function_call[f]['defined'] = check_builtins(func_arr[-1]).__name__
+            function_call[f]['defined'] = [check_builtins(func_arr[-1]).__name__]
             function_call[f]['alias'] = func_arr[-1]
         else:
-            function_call[f]['defined'] = 'unknown'
+            function_call[f]['defined'] = []
             function_call[f]['alias'] = f
             function_call[f]['full_call'] = f
 
@@ -373,6 +375,7 @@ def sim_mapr(i, id_to_n):
 def postprocess_index(root):
     print('Postprocessing index: ', root)
 
+    # Load the JSON blobs from filepath as a dict
     out = {}
     out_path = root
     def generate_index(fp, do):
@@ -399,9 +402,19 @@ def postprocess_index(root):
 
     generate_index('', out)
 
+    # Filepath --> Node maps
     all_nodes = {}
     files = {}
     folders = {}
+
+    # Filepath --> file content maps
+    function_calls = {}
+    function_defs = {}
+    imports = {}
+    symbols = {}
+    class_defs = {}
+
+    # Convert tree dict into node tree
     def get_nodes(curr_key, subtree, parent):
         new_node = Node()
         new_node.name = curr_key
@@ -421,6 +434,11 @@ def postprocess_index(root):
             new_node.type = NodeTypes.FILE
             files[new_node.filepath] = new_node
             new_node.content = subtree[curr_key]['node-content']
+            function_calls[new_node.filepath] = new_node.content['FunctionCall']
+            function_defs[new_node.filepath] = new_node.content['FunctionDef']
+            imports[new_node.filepath] = new_node.content['Import']
+            class_defs[new_node.filepath] = new_node.content['ClassDef']
+            symbols[new_node.filepath] = new_node.content['SymDef']
 
     root = Node()
     root.name = list(out.keys())[0]
@@ -434,57 +452,60 @@ def postprocess_index(root):
         root.type = NodeTypes.FILE
         files[root.filepath] = root
         root.content = out[root.name]['node-content']
+        function_calls[root.filepath] = root.content['FunctionCall']
+        function_defs[root.filepath] = root.content['FunctionDef']
+        imports[root.filepath] = root.content['Import']
+        class_defs[root.filepath] = root.content['ClassDef']
+        symbols[root.filepath] = root.content['SymDef']
 
+    # Create children_clean map to search for imports
     all_nodes[root.filepath] = root
     for nk in all_nodes:
         n = all_nodes[nk]
         for c in n.children.keys():
             n.children_clean[c.replace('_', '')] = n.children[c]
 
-    for f in files:
-        for fc in files[f].content['FunctionCall']:
-            if files[f].content['FunctionCall'][fc]['defined'] == 'unknown':
-                files[f].content['FunctionCall'][fc]['defined'] = set()
-            else:
-                files[f].content['FunctionCall'][fc]['defined'] = set([files[f].content['FunctionCall'][fc]['defined']])
+    # Convert function calls into a set
+    for f in function_calls:
+        for fc in function_calls[f]:
+            function_calls[f][fc]['defined'] = set(function_calls[f][fc]['defined'])
 
     # Method to heuristically resolve where functions are defined
-    def guess_definitions(fc):
+    def guess_definitions(f):
         # Get the initial line number of each class definition
-        class_lineno_range = [(c, fc['ClassDef'][c]['lineno']) for c in fc['ClassDef']]
+        class_lineno_range = [(c, class_defs[f][c]['lineno']) for c in class_defs[f]]
         class_lineno_range.sort(key=lambda x: -x[1])
 
         # Get the initial set of defined symbols and aliases
         defined_symbol_set = set(())
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] != 'unknown':
+        for fc in function_calls[f]:
+            if not function_calls[f][fc]['defined']:
                 defined_symbol_set.add(f)
-        import_alias_set = {fc['Import'][i]['alias'] for i in fc['Import']}
+        import_alias_set = {imports[f][i]['alias'] for i in imports[f]}
 
         # Handle function calls that have a chain with a known dependency
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == 'unknown':
-                if len(fc['FunctionCall'][f]['chain']) != 0:
-                    for c in fc['FunctionCall'][f]['chain']:
+        for fc in function_calls[f]:
+            if function_calls[f][fc]['defined']:
+                if len(function_calls[f][fc]['chain']) != 0:
+                    for c in function_calls[f][fc]['chain']:
                         if c in defined_symbol_set:
-                            fc['FunctionCall'][f]['defined'] = fc['FunctionCall'][c]['defined']
+                            function_calls[f][fc]['defined'] = function_calls[f][c]['defined']
                             break
 
         # Handle function calls that start with self.
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == 'unknown':
-                if len(f.split('.')) >= 2:
-                    if f.split('.')[0] == 'self':
+        for fc in function_calls[f]:
+            if not function_calls[f][fc]['defined']:
+                if len(fc.split('.')) >= 2:
+                    if fc.split('.')[0] == 'self':
                         if '.'.join(f.split('.')[1:]) in defined_symbol_set: # Function defined somewhere in the file, we assume in the class
-                            fc['FunctionCall'][f]['defined'] = set(['local'])
+                            function_calls[f][fc]['defined'] = set(['local'])
                         else:                                                # Function not found in file, it depends on the base classes
-                            fc['FunctionCall'][f]['defined'] = set()
-                            for l in fc['FunctionCall'][f]['line_num']:
+                            for l in function_calls[f][fc]['line_num']:
                                 for class_name, class_def_line in class_lineno_range:
                                     if l > class_def_line:
-                                        for b in fc['ClassDef'][class_name]['bases']: # Give all base files that are non-local
+                                        for b in class_defs[f][class_name]['bases']: # Give all base files that are non-local
                                             if b in import_alias_set:
-                                                fc['FunctionCall'][f]['defined'].add(b)
+                                                function_calls[f][fc]['defined'].add(b)
                                         continue
 
         # Search strategy: BFS with memoization
@@ -497,8 +518,8 @@ def postprocess_index(root):
             if sym in evaluated:
                 return set([])
             evaluated.add(sym)
-            if f in evaluated_dependencies:
-                return evaluated_dependencies[f]
+            if fc in evaluated_dependencies:
+                return evaluated_dependencies[fc]
 
             # If a dependency matches an import, it came from there
             for i in import_alias_set:
@@ -507,12 +528,12 @@ def postprocess_index(root):
                     return set([i])
 
             # We do not exist (bad)
-            if sym not in fc['SymDef']:
+            if sym not in symbols[f]:
                 return set([])
 
             # Check dependencies
             ret = set(())
-            for d in fc['SymDef'][sym]:
+            for d in symbols[f][sym]:
                 # Evaluate dependencies two ways: both straight up and as attributes
                 ret = ret.union(evaluate_dependencies(d, evaluated))
                 if len(d.split('.')) > 1:
@@ -523,24 +544,20 @@ def postprocess_index(root):
 
         # Handle function calls that are attributes of local variables
         ftd = []
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == 'unknown':
+        for fc in function_calls[f]:
+            if not function_calls[f][fc]['defined']:
                 if len(f.split('.')) >= 2:
-                    fc['FunctionCall'][f]['defined'] = evaluate_dependencies(f.split('.')[0], set(()))
+                    function_calls[f][fc]['defined'] = evaluate_dependencies(fc.split('.')[0], set(()))
                     shortened_name = '.'.join(f.split('.')[1:])
-                    if shortened_name in fc['FunctionCall'] and fc['FunctionCall'][shortened_name]['defined'] == 'unknown':
-                        nf = fc['FunctionCall'][shortened_name]
-                        of = fc['FunctionCall'][f]
+                    if shortened_name in function_calls[f] and not function_calls[f][shortened_name]['defined']:
+                        nf = function_calls[f][shortened_name]
+                        of = function_calls[f][fc]
 
                         nf['line_num'] += of['line_num']
                         nf['defined'] = of['defined']
-                        ftd.append(f)
-        for f in ftd:
-            del fc['FunctionCall'][f]
-
-        # Convert back to list (to be JSON serializable)
-        for f in fc['FunctionCall']:
-            fc['FunctionCall'][f]['defined'] = [fi for fi in fc['FunctionCall'][f]['defined']]
+                        ftd.append(fc)
+        for fc in ftd:
+            del function_calls[f][fc]
 
     def resolve_import_path(n, i):
         level, path = i
@@ -575,72 +592,75 @@ def postprocess_index(root):
         return ''
 
     def resolve_import_paths(f):
-        fc = files[f].content
         start_node = files[f]
-        for i in fc['Import']:
-            fc['Import'][i]['path'] = resolve_import_path(start_node, (fc['Import'][i]['level'], i))
+        for i in imports[f]:
+            imports[f][i]['path'] = resolve_import_path(start_node, (imports[f][i]['level'], i))
 
     # We have no clue at all where this function is defined, try to resolve via
     # searching local imports, then global (pip) imports
-    def guess_definitions_global(fc):
-        for f in fc['FunctionCall']:
-            if fc['FunctionCall'][f]['defined'] == []:
+    def guess_definitions_global(f):
+        for fc in function_calls[f]:
+            if not function_calls[f][fc]['defined']:
                 found_in_import = False
-                for i in fc['Import']:
-                    if fc['Import'][i]['path'] != '':
-                        for fd in files[fc['Import'][i]['path']].content['FunctionDef']:
-                            if fd == f or (len(f.split('.')) > 1 and f.split('.')[-1] == fd):
-                                fc['FunctionCall'][f]['defined'].append(fc['Import'][i]['path'])
+                for i in imports[f]:
+                    if imports[f][i]['path'] != '':
+                        for fd in function_defs[imports[f][i]['path']]:
+                            if fd == f or (len(fc.split('.')) > 1 and fc.split('.')[-1] == fd):
+                                function_calls[f][fc]['defined'].add(imports[f][i]['path'])
                                 found_in_import = True
 
                 if not found_in_import:
                     for file_comp in files:
-                        for fd in files[file_comp].content['FunctionDef']:
+                        for fd in function_defs[file_comp]:
                             if fd == f:
-                                fc['FunctionCall'][f]['defined'].append(file_comp)
-                if 'clf_type' in fc:
-                    print(files[f].content['FunctionCall'][fd])
+                                function_calls[f][fc]['defined'].add(file_comp)
 
     for f in files:
-        guess_definitions(files[f].content)
+        guess_definitions(f)
 
     for f in files:
         resolve_import_paths(f)
 
     for f in files:
-        guess_definitions_global(files[f].content)
+        guess_definitions_global(f)
 
     for f in files:
-        for i in files[f].content['Import']:
-            if files[f].content['Import'][i]['path'] == '':
-                files[f].content['Import'][i]['path'] = i
+        for i in imports[f]:
+            if imports[f][i]['path'] == '':
+                imports[f][i]['path'] = i
 
     for f in files:
-        for fd in files[f].content['FunctionCall']:
-            fdc = files[f].content['FunctionCall'][fd]
+        for fd in function_calls[f]:
+            fdc = function_calls[f][fd]
             nd = []
             for d in fdc['defined']:
                 if d == 'local':
                     nd.append(files[f].filepath)
                 elif d == 'builtin':
                     nd.append('builtin')
-                elif d in files[f].content['Import']:
-                    nd.append(files[f].content['Import'][d]['path'])
+                elif d in imports[f]:
+                    nd.append(imports[f][d]['path'])
                 else:
                     nd.append(d)
             fdc['defined'] = nd
 
     for f in files:
-        for fc in files[f].content['FunctionCall']:
-            ln = files[f].content['FunctionCall'][fc]['line_num']
+        for fd in function_defs[f]:
+            function_defs[f][fd]['calls'] = set(function_defs[f][fd]['calls'])
+
+    for f in files:
+        for fc in function_calls[f]:
+            ln = function_calls[f][fc]['line_num']
             for l in ln:
-                for fd in files[f].content['FunctionDef']:
-                    for s, e in zip(files[f].content['FunctionDef'][fd]['lineno'], files[f].content['FunctionDef'][fd]['line-end']):
+                for fd in function_defs[f]:
+                    for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
                         if l >= s and l <= e:
-                            for d in files[f].content['FunctionCall'][fc]['defined']:
-                                files[f].content['FunctionDef'][fd]['calls'].append(f"{d}|{files[f].content['FunctionCall'][fc]['alias']}")
-        for fd in files[f].content['FunctionDef']:
-           files[f].content['FunctionDef'][fd]['calls'] = list(set(files[f].content['FunctionDef'][fd]['calls']))
+                            for d in function_calls[f][fc]['defined']:
+                                function_defs[f][fd]['calls'].add(f"{d}|{function_calls[f][fc]['alias']}")
+
+    for f in files:
+        for fd in function_defs[f]:
+            function_defs[f][fd]['calls'] = list(function_defs[f][fd]['calls'])
 
     # g = Graph()
     f_to_v = {}
@@ -648,14 +668,14 @@ def postprocess_index(root):
     f_to_id = {}
     id = 0
     for f in files:
-        for fd in files[f].content['FunctionDef']:
+        for fd in function_defs[f]:
             if f"{files[f].filepath}|{fd}" not in f_to_id:
                 #v = g.add_vertex()
                 # f_to_v[f"{files[f].filepath}|{fd}"] = v
                 f_to_id[f"{files[f].filepath}|{fd}"] = id
                 id_to_f.append(f"{files[f].filepath}|{fd}")
                 id += 1
-            for c in set(files[f].content['FunctionDef'][fd]['calls']):
+            for c in set(function_defs[f][fd]['calls']):
                 if c not in f_to_id:
                     #v = g.add_vertex()
                     # f_to_v[c] = v
@@ -721,6 +741,21 @@ def postprocess_index(root):
             if f1 != f2:
                 print(f1, f2, nx.simrank_similarity(G, f_to_id[f1], f_to_id[f2], tolerance=0.01))
     '''
+
+    # Convert back to list (to be JSON serializable)
+    for f in files:
+        for fc in function_calls[f]:
+            function_calls[f][fc]['defined'] = list(function_calls[f][fc]['defined'])
+
+    # Write back to nodes
+    for f in files:
+        node = files[f]
+        node.content['FunctionCall'] = function_calls[f]
+        node.content['FunctionDef'] = function_defs[f]
+        node.content['Import'] = imports[f]
+        node.content['ClassDef'] = class_defs[f]
+        node.content['SymDef'] = symbols[f]
+
     np.save(os.path.join(out_path, 'sim_mat'), sim_mat)
     with open(os.path.join(out_path, 'file_key.txt'), 'w') as of:
         of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))

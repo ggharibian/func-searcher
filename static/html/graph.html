@@ -22,16 +22,16 @@
 <body onload="goToView()">
     <div class="content">
         <div id="main-content">
-            <div class="graph" id="cy"></div>
+            <div class="graph" id="cy" onwheel="updateSlider()"></div>
             <div class="sidebar">
                 <div class="graph-side">
                     <div class="zoom-row">
                         <div class="zoom-text">Zoom:</div>
-                        <input type="range" min="1" max="100" value="50" class="slider" id="zoom-slider">
+                        <input type="range" min="0" max="100" value="50" class="slider" id="zoom-slider" oninput="onZoomSliderChange()">
                     </div>
                     <div class="button-row">
                         <button onclick="onClearSelection()">Clear Selection</button>
-                        <button>Center Graph</button>
+                        <button onclick="globalThis.cy.center()">Center Graph</button>
                     </div>
                     <form autocomplete="off">
                         <div class="autocomplete">
