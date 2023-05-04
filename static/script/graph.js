@@ -794,6 +794,10 @@ function highlightCallTree(name) {
     });
 }
 
+function loadCode() {
+
+}
+
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
 function setSearchView() {
     let inp = document.getElementById('func-search');
@@ -847,6 +851,7 @@ function setSearchView() {
                     globalThis.activeName = inp.value;
                     globalThis.cy.elements().remove();
                     updateView();
+                    loadCode();
 
                     /*close the list of autocompleted values,
                     (or any other open lists of autocompleted values:*/
@@ -1048,3 +1053,31 @@ function onClearSelection() {
     updateView();
     document.getElementById('func-search').value = '';
 }
+
+document.addEventListener('mouseup', (e) => {
+    globalThis.lastClick = e.target.tagName;
+});
+
+document.addEventListener('keydown', (e) => {
+    if (globalThis.lastClick != 'CANVAS') return
+
+    let dx = 0;
+    let dy = 0;
+    if (e.code === "ArrowUp") {
+        dy = 10;
+    }
+    else if (e.code === "ArrowDown") {
+        dy = -10;
+    }
+    else if (e.code === "ArrowRight") {
+        dx = -10;
+    }
+    else if (e.code === "ArrowLeft") {
+        dx = 10;
+    }
+    else {
+        return
+    }
+
+    globalThis.cy.panBy({'x': dx, 'y': dy});
+});
