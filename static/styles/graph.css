@@ -143,12 +143,16 @@ button:hover {
   display: flex;
   flex-direction: column;
   text-align: center;
+  right: 35vw;
 }
 
 .popup h1 {
   padding: 0;
   border-bottom: 2px solid #03254E;
   font-size: 24px;
+  margin: 0;
+  margin-bottom: 5px;
+  padding-bottom: 3px;
 }
 
 .popup-toprow-elem {
@@ -159,4 +163,18 @@ button:hover {
   display: flex;
   flex-direction: row;
   width: 100%;
+}
+
+.popup button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  fill: #a9a9a9;
+}
+
+.popup button:hover {
+  background-color: white;
+  fill: #03254E;
 }

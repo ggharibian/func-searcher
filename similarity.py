@@ -20,8 +20,6 @@ def get_similarity(OUTPUT_FOLDER, fname):
     tid = f_to_id[fname]
     mr = [(i, sim_mat[tid][i]) for i in range(N)]
     mr.sort(key=lambda x: -1*x[1])
-    for f, c in mr[1:6]:
-        print(i_to_f[f], c)
     return [(i_to_f[f], c) for f, c in mr[1:6]]
 
 #get_similarity("scikit-learn/sklearn/linear_model/_linear_loss.json|weight_intercept")

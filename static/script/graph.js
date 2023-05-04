@@ -384,14 +384,46 @@ function removeChildRenderRestriction(n) {
     }
 }
 
-function onFunctionClick(file, ft, f) {
+function updatePopupPosition() {
+    if (globalThis.popupId != undefined) {
+        const bbox1 = document.getElementById('popup').getBoundingClientRect();
+        const bbox2 = document.getElementById(globalThis.popupId).getBoundingClientRect();
+        if (bbox2.top < 0) {
+            document.getElementById('popup').style.top = '0px';
+        }
+        else if (bbox2.top + bbox1.height >= window.innerHeight) {
+            document.getElementById('popup').style.top = `${window.innerHeight - bbox1.height}px`;
+        }
+        else {
+            document.getElementById('popup').style.top = `${bbox2.top}px`;
+        }
+    }
+}
+
+function closePopup() {
+    document.getElementById('popup').remove();
+    globalThis.popupId = undefined;
+}
+
+function onFunctionClick(id, file, ft, f) {
 
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
         if (req.readyState == 4 && req.status == 200) {
+
+            if (document.getElementById('popup') != undefined) {
+                document.getElementById('popup').remove();
+            }
+
             const popup = document.createElement("div");
+            popup.id = 'popup'
+            popup.style.top = `${document.getElementById(id).getBoundingClientRect().top}px`;
+            globalThis.popupId = id;
             popup.innerHTML = `
                 <h1>${f}</h1>
+                <button onclick="closePopup()">
+                <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+                </button>
                 <div class='popup-toprow'>
                     <div class='popup-toprow-elem'>Defined</div>
                     <div class='popup-toprow-elem'>Other Calls</div>
@@ -534,7 +566,7 @@ function updateView() {
                             .replaceAll('\t', '&emsp').replaceAll(' ', '&nbsp');
                         if (globalThis.nodes[tid].lineno_map.hasOwnProperty(num)) {
                             globalThis.nodes[tid].lineno_map[num].forEach(c => {
-                                line = line.replaceAll(c[1], `<span class="function-code" onclick="onFunctionClick('${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
+                                line = line.replaceAll(c[1], `<span class="function-code" id="line-${ln}" onclick="onFunctionClick('line-${ln}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
                             });
                         }
 
