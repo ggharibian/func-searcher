@@ -167,11 +167,12 @@ button:hover {
 
 .popup button {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -42;
+  right: -3;
   margin: 0;
   padding: 0;
   fill: #a9a9a9;
+  border: 3px #03254E solid;
 }
 
 .popup button:hover {

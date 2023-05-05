@@ -595,6 +595,8 @@ def postprocess_index(root):
         start_node = files[f]
         for i in imports[f]:
             imports[f][i]['path'] = resolve_import_path(start_node, (imports[f][i]['level'], i))
+        for fc in function_calls[f]:
+            function_calls[f][fc]['defined'] = set([imports[f][d]['path'] if d in imports[f] else d for d in function_calls[f][fc]['defined']])
 
     # We have no clue at all where this function is defined, try to resolve via
     # searching local imports, then global (pip) imports
@@ -675,7 +677,7 @@ def postprocess_index(root):
                 f_to_id[f"{files[f].filepath}|{fd}"] = id
                 id_to_f.append(f"{files[f].filepath}|{fd}")
                 id += 1
-            for c in set(function_defs[f][fd]['calls']):
+            for c in set(function_defs[f][fd]['calls']): # TODO: FIX!!!
                 if c not in f_to_id:
                     #v = g.add_vertex()
                     # f_to_v[c] = v

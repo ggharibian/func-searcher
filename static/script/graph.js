@@ -209,6 +209,7 @@ function augmentDependencySet(deps) {
 
 function computeDependencies(node, nodes) {
     for (const k in node.content.Import) {
+        /*
         let imp = node.content.Import[k];
         let cn = node;
 
@@ -245,6 +246,12 @@ function computeDependencies(node, nodes) {
         if (valid && cn.filepath != node.filepath) {
             node.dependencies.add(cn.filepath);
             nodes[cn.filepath].dependents.add(node.filepath);
+        }
+        */
+
+        if (nodes.hasOwnProperty(node.content.Import[k]['path'])) {
+            node.dependencies.add(node.content.Import[k]['path']);
+            nodes[node.content.Import[k]['path']].dependents.add(node.filepath);
         }
     }
 
@@ -388,8 +395,8 @@ function updatePopupPosition() {
     if (globalThis.popupId != undefined) {
         const bbox1 = document.getElementById('popup').getBoundingClientRect();
         const bbox2 = document.getElementById(globalThis.popupId).getBoundingClientRect();
-        if (bbox2.top < 0) {
-            document.getElementById('popup').style.top = '0px';
+        if (bbox2.top < 39) {
+            document.getElementById('popup').style.top = '39px';
         }
         else if (bbox2.top + bbox1.height >= window.innerHeight) {
             document.getElementById('popup').style.top = `${window.innerHeight - bbox1.height}px`;
@@ -426,6 +433,7 @@ function onFunctionClick(id, file, ft, f) {
                 </button>
                 <div class='popup-toprow'>
                     <div class='popup-toprow-elem'>Defined</div>
+                    ${nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`)}
                     <div class='popup-toprow-elem'>Other Calls</div>
                 </div>
                 <div>
