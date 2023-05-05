@@ -412,6 +412,15 @@ function closePopup() {
     globalThis.popupId = undefined;
 }
 
+function getDefined(file, f, ft) {
+    if (ft == FunctionType.Call) {
+        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`);
+    }
+    else {
+        return "Function Definition"
+    }
+}
+
 function onFunctionClick(id, file, ft, f) {
 
     let req = new XMLHttpRequest();
@@ -433,7 +442,7 @@ function onFunctionClick(id, file, ft, f) {
                 </button>
                 <div class='popup-toprow'>
                     <div class='popup-toprow-elem'>Defined</div>
-                    ${nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`)}
+                    ${getDefined(file, f, ft)}
                     <div class='popup-toprow-elem'>Other Calls</div>
                 </div>
                 <div>
@@ -562,94 +571,7 @@ function updateView() {
         globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
 
         if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
-            let req = new XMLHttpRequest();
-            req.onreadystatechange = function () {
-                if (req.readyState == 4 && req.status == 200) {
-                    let ln = 1;
-                    let text = req.responseText;
-                    let os = '';
-                    const processLine = (line, num) => {
-                        line = line.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-                            .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
-                            .replaceAll('\t', '&emsp').replaceAll(' ', '&nbsp');
-                        if (globalThis.nodes[tid].lineno_map.hasOwnProperty(num)) {
-                            globalThis.nodes[tid].lineno_map[num].forEach(c => {
-                                line = line.replaceAll(c[1], `<span class="function-code" id="line-${ln}" onclick="onFunctionClick('line-${ln}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
-                            });
-                        }
-
-                        return `${line}<br>`;
-                    };
-
-                    while (text.indexOf('\n') != -1) {
-                        os += processLine(text.substring(0, text.indexOf('\n')), ln);
-                        text = text.substring(text.indexOf('\n') + 1);
-                        ln++;
-                    }
-                    os += processLine(text, ln);
-
-                    /*
-                    Prism.tokenize(req.responseText, Prism.languages['python']).forEach(t => {
-                        let currString = t;
-                        if (t.hasOwnProperty('content')) {
-                            if (typeof t.content == 'string') {
-                                currString = t.content;
-                            }
-                            else {
-                                currString = t.content.reduce(
-                                    (a, cv) => a + cv,
-                                    ''
-                                );
-                            }
-                        }
-                        currString = currString.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-                            .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-                        console.log(ln);
-                        console.log(globalThis.nodes[tid].lineno_map);
-                        console.log(currString);
-                        if (globalThis.nodes[tid].lineno_map.hasOwnProperty(ln)) {
-                            globalThis.nodes[tid].lineno_map[ln].forEach(c => {
-                                currString.replaceAll(c, `<span onclick="onFunctionClick(${c})">${c}</span>`)
-                            });
-                        }
-                        os += currString;
-
-                        if (t.hasOwnProperty('content')) {
-                            if (typeof t.content == 'string') {
-                                ln += checkStr(t.content, re);
-                            }
-                            else {
-                                ln += t.content.reduce(
-                                    (a, cv) => a + checkStr(cv, re),
-                                    0
-                                );
-                            }
-                        }
-                        else {
-                            ln += checkStr(t, re);
-                        }
-
-
-                    });
-                    */
-                    document.getElementById('code-loaded').innerHTML = os;
-                    /*
-                    document.getElementById('code-loaded').innerHTML = `
-                    <pre>
-                        <code class="language-python">
-                            ${req.responseText}
-                        </code>
-                    </pre>`;*/
-
-                    Prism.highlightAll();
-                    //hljs.highlightAll();
-                    //hljs.initLineNumbersOnLoad();
-
-                    globalThis.displayedCode = tid;
-                }
-            }
-            req.open('GET', `http://localhost:5000/raw?fpath=${tid.replace('json', 'py')}`);
-            req.send();
+            loadCode(tid);
         }
     };
     let onUnselection = event => {
@@ -802,8 +724,95 @@ function highlightCallTree(name) {
     });
 }
 
-function loadCode() {
+function loadCode(tid) {
+    let req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+        if (req.readyState == 4 && req.status == 200) {
+            let ln = 1;
+            let text = req.responseText;
+            let os = '';
+            const processLine = (line, num) => {
+                line = line.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
+                    .replaceAll('\t', '&emsp').replaceAll(' ', '&nbsp');
+                if (globalThis.nodes[tid].lineno_map.hasOwnProperty(num)) {
+                    globalThis.nodes[tid].lineno_map[num].forEach(c => {
+                        line = line.replaceAll(c[1], `<span class="function-code" id="line-${ln}" onclick="onFunctionClick('line-${ln}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
+                    });
+                }
 
+                return `${line}<br>`;
+            };
+
+            while (text.indexOf('\n') != -1) {
+                os += processLine(text.substring(0, text.indexOf('\n')), ln);
+                text = text.substring(text.indexOf('\n') + 1);
+                ln++;
+            }
+            os += processLine(text, ln);
+
+            /*
+            Prism.tokenize(req.responseText, Prism.languages['python']).forEach(t => {
+                let currString = t;
+                if (t.hasOwnProperty('content')) {
+                    if (typeof t.content == 'string') {
+                        currString = t.content;
+                    }
+                    else {
+                        currString = t.content.reduce(
+                            (a, cv) => a + cv,
+                            ''
+                        );
+                    }
+                }
+                currString = currString.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+                console.log(ln);
+                console.log(globalThis.nodes[tid].lineno_map);
+                console.log(currString);
+                if (globalThis.nodes[tid].lineno_map.hasOwnProperty(ln)) {
+                    globalThis.nodes[tid].lineno_map[ln].forEach(c => {
+                        currString.replaceAll(c, `<span onclick="onFunctionClick(${c})">${c}</span>`)
+                    });
+                }
+                os += currString;
+
+                if (t.hasOwnProperty('content')) {
+                    if (typeof t.content == 'string') {
+                        ln += checkStr(t.content, re);
+                    }
+                    else {
+                        ln += t.content.reduce(
+                            (a, cv) => a + checkStr(cv, re),
+                            0
+                        );
+                    }
+                }
+                else {
+                    ln += checkStr(t, re);
+                }
+
+
+            });
+            */
+            document.getElementById('code-loaded').innerHTML = os;
+            /*
+            document.getElementById('code-loaded').innerHTML = `
+            <pre>
+                <code class="language-python">
+                    ${req.responseText}
+                </code>
+            </pre>`;*/
+
+            Prism.highlightAll();
+            //hljs.highlightAll();
+            //hljs.initLineNumbersOnLoad();
+
+            globalThis.displayedCode = tid;
+        }
+    }
+    req.open('GET', `http://localhost:5000/raw?fpath=${tid.replace('json', 'py')}`);
+    req.send();
 }
 
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
@@ -859,7 +868,18 @@ function setSearchView() {
                     globalThis.activeName = inp.value;
                     globalThis.cy.elements().remove();
                     updateView();
-                    loadCode();
+
+                    if (globalThis.activeName.indexOf(' ') != 0) {
+                        let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
+                        let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(')+1, globalThis.activeName.length - 1).replace('.py', '.json');
+                        loadCode(filename);
+                        console.log(Object.keys(globalThis.nodes[filename].content.FunctionDef[functionName]));
+                        onFunctionClick(`line-${globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0]}`, filename, FunctionType.Definition, functionName);
+                    }
+                    else {
+                        loadCode(globalThis.activeName);
+                    }
+
 
                     /*close the list of autocompleted values,
                     (or any other open lists of autocompleted values:*/
@@ -1087,5 +1107,5 @@ document.addEventListener('keydown', (e) => {
         return
     }
 
-    globalThis.cy.panBy({'x': dx, 'y': dy});
+    globalThis.cy.panBy({ 'x': dx, 'y': dy });
 });

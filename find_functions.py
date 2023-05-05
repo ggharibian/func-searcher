@@ -664,6 +664,16 @@ def postprocess_index(root):
         for fd in function_defs[f]:
             function_defs[f][fd]['calls'] = list(function_defs[f][fd]['calls'])
 
+    def ci(i, d):
+        for ii in i:
+            if i[ii]['alias'] == d:
+                return ii
+        return d
+
+    for f in files:
+        for fc in function_calls[f]:
+            function_calls[f][fc]['defined'] = set([ci(imports[f], d) for d in function_calls[f][fc]['defined']])
+
     # g = Graph()
     f_to_v = {}
     id_to_f = []
