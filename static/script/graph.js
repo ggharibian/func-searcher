@@ -356,28 +356,41 @@ function updateNodesInView(ms) {
     globalThis.nodesInView = newNodesInView;
 }
 
-function createDescBox(targetPath, targetDataType) {
-    if (targetDataType == 'file') {
-        // console.log(globalThis.nodes)
-        // console.log(globalThis.nodes[targetPath]);
-        const node_content = globalThis.nodes[targetPath];
-        const file_contents = node_content.content;
-        const class_defs = Object.keys(file_contents.ClassDef);
-        const function_calls = Object.keys(file_contents.FunctionCall);
-        const function_defs = Object.keys(file_contents.FunctionDef);
-        const dependencies = node_content.dependencies;
-        const dependents = node_content.dependents;
-        const fileName = node_content.filename;
-        const filepath = node_content.filepath;
+function createDescBox(target) {
+    if (target.data('name') == undefined) return;
+
+    let tbb = target.boundingBox();
+    let cbb = globalThis.cy.extent();
+    let cyBaseBB = document.getElementById('cy').getBoundingClientRect();
+    let clientX = cyBaseBB.x + ((tbb.x1-cbb.x1) / cbb.w) * cyBaseBB.width;
+    let clientY = cyBaseBB.y + ((tbb.y1-cbb.y1) / cbb.h) * cyBaseBB.height;
+    let clientW = (tbb.w / cbb.w) * cyBaseBB.width;
+    let clientH = (tbb.h / cbb.h) * cyBaseBB.height;
+
+    const popup = document.createElement("div");
+    popup.id = 'local-name'
+    popup.innerHTML = `
+                <h1>${target.data('name').replace('.json', '')}</h1>`;
+    popup.classList.add('local-name');
+    document.getElementById('main-content').appendChild(popup);
+
+    let pbb = document.getElementById('local-name').getBoundingClientRect();
+    let y = 0;
+    if (pbb.height <= clientY) {
+        y = clientY - pbb.height - 3;
+
     }
 
-    if (targetDataType == 'folder') {
-        // console.log(globalThis.folders[targetPath]);
-        const folder_content = globalThis.folders[targetPath];
-        const file_contents = folder_content.children_clean;
-        const fileName = folder_content.filename;
-        const filepath = folder_content.filepath;
+    let x = clientX + (clientW - pbb.width) / 2;
+    if (x < 0) {
+        x = 0;
     }
+    if (x + pbb.width > cyBaseBB.width) {
+        x = cyBaseBB.width - pbb.width;
+    }
+
+    document.getElementById('local-name').style.top = y;
+    document.getElementById('local-name').style.left = x;
 }
 
 function removeChildRenderRestriction(n) {
@@ -468,19 +481,33 @@ function updateView() {
     globalThis.nodesInView.forEach(n => {
         if (n.size != 0) {
             if (n.type == NodeTypes.File) {
+                let tf = n.filename.replace('.json', '');
+                let nf = 15 / globalThis.cy.zoom();
+                if (nf > 24) {
+                    nf = 0;
+                }
+                if (tf.length * nf > 60) {
+                    tf = tf.substring(0, Math.floor(60 / nf) + 1) + '...';
+                }
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'file', id: n.filepath, label: n.filename.replace('.json', ''), size: n.display_size },
+                    data: { type: 'file', id: n.filepath, name: n.filename, label: tf, size: n.display_size },
                     grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
+                    style: { 'font-size': `${nf}px` }
                 });
             }
             else {
                 globalThis.cy.add({
                     group: 'nodes',
-                    data: { type: 'folder', id: n.filepath, label: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING },
+                    data: { type: 'folder', id: n.filepath, label: n.filename, name: n.filename, w: n.w - DISPLAY_PADDING, h: n.h - DISPLAY_PADDING },
                     grabbable: false,
                     position: { x: n.total_offset_x, y: n.total_offset_y },
+                    style: {
+                        'font-size': `${n.w / n.filename.length} px`,
+                        'text-halign': 'center',
+                        'text-valign': 'center'
+                    }
                 });
             }
         }
@@ -501,13 +528,17 @@ function updateView() {
 
     let onMouseOver = event => {
         event.target.connectedEdges().style({ 'line-color': 'red' });
-        createDescBox(event.target.data('id'), event.target.data('type'));
+        createDescBox(event.target);
     };
 
     let onMouseOut = event => {
         if (!globalThis.currSelection.has(event.target.data('id'))) {
             event.target.connectedEdges().style({ 'line-color': '#ccc' });
         }
+        if (document.getElementById('local-name') != null) {
+            document.getElementById('local-name').remove();
+        }
+
     };
 
     let ngs = new Set();
@@ -871,7 +902,7 @@ function setSearchView() {
 
                     if (globalThis.activeName.indexOf(' ') != 0) {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
-                        let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(')+1, globalThis.activeName.length - 1).replace('.py', '.json');
+                        let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
                         loadCode(filename);
                         console.log(Object.keys(globalThis.nodes[filename].content.FunctionDef[functionName]));
                         onFunctionClick(`line-${globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0]}`, filename, FunctionType.Definition, functionName);
