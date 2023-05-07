@@ -667,7 +667,7 @@ def postprocess_index(root):
     def ci(i, d):
         for ii in i:
             if i[ii]['alias'] == d:
-                return ii
+                return i[ii]['path']
         return d
 
     for f in files:
@@ -675,7 +675,7 @@ def postprocess_index(root):
             function_calls[f][fc]['defined'] = set([ci(imports[f], d) for d in function_calls[f][fc]['defined']])
 
     # g = Graph()
-    f_to_v = {}
+    # f_to_v = {}
     id_to_f = []
     f_to_id = {}
     id = 0
@@ -694,17 +694,29 @@ def postprocess_index(root):
                     f_to_id[c] = id
                     id_to_f.append(c)
                     id += 1
+        for fc in function_calls[f]:
+            if not function_calls[f][fc]['defined']:
+                f_to_id[f"${files[f].filepath}|${fc}"] = id
+                id_to_f.append(f"${files[f].filepath}|${fc}")
+                id += 1
+            else:
+                for d in function_calls[f][fc]['defined']:
+                    if f"${d}|${fc}" not in f_to_id:
+                        f_to_id[f"${d}|${fc}"] = id
+                        id_to_f.append(f"${d}|${fc}")
+                        id += 1
 
     # Compute similiarity metrics
     fname_mat = np.identity(id)
 
+    '''
     id_to_nlist = []
     for i in range(id):
         id_to_nlist.append(id_to_f[i].split('|')[1].split('_'))
     with Pool(8) as p:
         fname_mat = np.asarray(p.starmap(sim_mapr, [(i, id_to_nlist) for i in range(id)]))
     fname_mat = fname_mat + fname_mat.transpose() - np.identity(id)
-
+    '''
     sim_mat = fname_mat
     '''
     adj_mat = np.identity(id)
