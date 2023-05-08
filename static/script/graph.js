@@ -434,6 +434,15 @@ function getDefined(file, f, ft) {
     }
 }
 
+function getOtherCalls(file, f, ft) {
+    if (ft == FunctionType.Call) {
+        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div>${m}</div>`).join('');
+    }
+    else {
+        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div>${m}</div>`).join('');
+    }
+}
+
 function onFunctionClick(id, file, ft, f) {
 
     let req = new XMLHttpRequest();
@@ -446,7 +455,6 @@ function onFunctionClick(id, file, ft, f) {
 
             const popup = document.createElement("div");
             popup.id = 'popup'
-            popup.style.top = `${document.getElementById(id).getBoundingClientRect().top}px`;
             globalThis.popupId = id;
             popup.innerHTML = `
                 <h1>${f}</h1>
@@ -457,6 +465,7 @@ function onFunctionClick(id, file, ft, f) {
                     <div class='popup-toprow-elem'>Defined</div>
                     ${getDefined(file, f, ft)}
                     <div class='popup-toprow-elem'>Other Calls</div>
+                    ${getOtherCalls(file, f, ft)}
                 </div>
                 <div>
                     ${JSON.parse(req.responseText).map(m => `<div>${m[0]}</div>`)}
@@ -464,6 +473,7 @@ function onFunctionClick(id, file, ft, f) {
             `;
             popup.classList.add('popup');
             document.getElementById('main-content').appendChild(popup);
+            updatePopupPosition();
         }
     }
     req.open('GET', `http://localhost:5000/similar?file=${file}&function=${f}`);
@@ -934,13 +944,42 @@ function setSearchView() {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
                         loadCode(filename);
-                        console.log(Object.keys(globalThis.nodes[filename].content.FunctionDef[functionName]));
                         onFunctionClick(`line-${globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0]}`, filename, FunctionType.Definition, functionName);
+
+                        let fpathArr = filename.split('/');
+                        console.log(fpathArr);
+                        let cpath = fpathArr[0];
+                        let i = 1;
+                        while (globalThis.cy.nodes(`node[id="${cpath}"]`).length == 0) {
+                            cpath += '/';
+                            cpath += fpathArr[i];
+                            i++;
+                            if (i >= fpathArr.length) {
+                                break;
+                            }
+                        }
+                        if (globalThis.cy.nodes(`node[id="${cpath}"]`).length != 0) {
+                            while (cpath != filename) {
+                                onFolderDoubleClick(cpath);
+                                cpath += '/';
+                                cpath += fpathArr[i];
+                                i++;
+                            }
+                            globalThis.cy.center(globalThis.cy.nodes(`node[id="${cpath}"]`));
+                        }
+                        /*
+                        while (.length == 0) {
+
+                        }
+                        */
+                        //console.log(globalThis.nodes[filename].filepath);
+                        //console.log(globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`));
+
+                        globalThis.cy.center(globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`));
                     }
                     else {
                         loadCode(globalThis.activeName);
                     }
-
 
                     /*close the list of autocompleted values,
                     (or any other open lists of autocompleted values:*/
