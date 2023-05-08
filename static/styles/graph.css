@@ -198,3 +198,7 @@ button:hover {
   font-size: 24px;
   padding: 0;
 }
+
+.folder-in-code {
+  cursor: pointer;
+}

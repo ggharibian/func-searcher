@@ -362,8 +362,8 @@ function createDescBox(target) {
     let tbb = target.boundingBox();
     let cbb = globalThis.cy.extent();
     let cyBaseBB = document.getElementById('cy').getBoundingClientRect();
-    let clientX = cyBaseBB.x + ((tbb.x1-cbb.x1) / cbb.w) * cyBaseBB.width;
-    let clientY = cyBaseBB.y + ((tbb.y1-cbb.y1) / cbb.h) * cyBaseBB.height;
+    let clientX = cyBaseBB.x + ((tbb.x1 - cbb.x1) / cbb.w) * cyBaseBB.width;
+    let clientY = cyBaseBB.y + ((tbb.y1 - cbb.y1) / cbb.h) * cyBaseBB.height;
     let clientW = (tbb.w / cbb.w) * cyBaseBB.width;
     let clientH = (tbb.h / cbb.h) * cyBaseBB.height;
 
@@ -470,6 +470,47 @@ function onFunctionClick(id, file, ft, f) {
     req.send();
 }
 
+function loadCodeOrFunction(parent, child) {
+    onFolderDoubleClick(parent);
+    if (globalThis.nodes.hasOwnProperty(child)) {
+        loadCode(child);
+    }
+    else {
+        loadFolder(child);
+    }
+
+    let n = globalThis.cy.nodes(`node[id="${child}"]`);
+    n.select();
+}
+
+function onFolderDoubleClick(fid) {
+    let n = globalThis.folders[fid];
+    let cn = n;
+    while (cn != undefined) {
+        cn.children_below_to_render++;
+        cn = cn.parent;
+    }
+    updateNodesInView(globalThis.cy.extent().h);
+    globalThis.ghostFolders.push({
+        group: 'nodes',
+        data: { type: 'ghost', id: n.filepath + 'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
+        position: { x: n.total_offset_x, y: n.total_offset_y },
+        grabbable: false,
+        style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
+    });
+    updateView();
+}
+
+function loadFolder(tid) {
+    document.getElementById('code-loaded').innerHTML = `
+        <h2>${globalThis.folders[tid].filepath}</h2>
+        Number of files: ${globalThis.folders[tid].size}<br>
+        ${Object.keys(globalThis.folders[tid].children).map(c => {
+        return `<div class='folder-in-code' onclick=loadCodeOrFunction("${tid}","${globalThis.folders[tid].children[c].filepath}")>${c.replace('.json', '.py')}</div>`
+    }).join('')}
+    `;
+}
+
 function updateView() {
     globalThis.cy.elements().remove();
 
@@ -570,21 +611,7 @@ function updateView() {
             updateView();
         }
         else if (event.target.json().selected && event.target.json().data.type == 'folder') {
-            let n = globalThis.folders[event.target.data('id')];
-            let cn = n;
-            while (cn != undefined) {
-                cn.children_below_to_render++;
-                cn = cn.parent;
-            }
-            updateNodesInView(globalThis.cy.extent().h);
-            globalThis.ghostFolders.push({
-                group: 'nodes',
-                data: { type: 'ghost', id: n.filepath + 'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
-                position: { x: n.total_offset_x, y: n.total_offset_y },
-                grabbable: false,
-                style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
-            });
-            updateView();
+            onFolderDoubleClick(event.target.data('id'));
         }
     };
 
@@ -603,6 +630,9 @@ function updateView() {
 
         if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
             loadCode(tid);
+        }
+        else if (globalThis.folders.hasOwnProperty(tid)) {
+            loadFolder(tid);
         }
     };
     let onUnselection = event => {
