@@ -481,7 +481,7 @@ function onFunctionClick(id, file, ft, f) {
 }
 
 function loadCodeOrFunction(parent, child) {
-    if (!globalThis.ghostFolders.some(e => { return e.data.id == parent+'SIUUU'; })) {
+    if (!globalThis.ghostFolders.some(e => { return e.data.id == parent + 'SIUUU'; })) {
         onFolderDoubleClick(parent);
     }
     if (globalThis.nodes.hasOwnProperty(child)) {
@@ -808,23 +808,10 @@ function loadCode(tid) {
                 line = line.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
                     .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;')
                     .replaceAll('\t', '&emsp').replaceAll(' ', '&nbsp');
-                if (globalThis.nodes[tid].lineno_map.hasOwnProperty(num)) {
-                    globalThis.nodes[tid].lineno_map[num].forEach(c => {
-                        line = line.replaceAll(c[1], `<span class="function-code" id="line-${ln}" onclick="onFunctionClick('line-${ln}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
-                    });
-                }
 
-                return `${line}<br>`;
+                return line;
             };
 
-            while (text.indexOf('\n') != -1) {
-                os += processLine(text.substring(0, text.indexOf('\n')), ln);
-                text = text.substring(text.indexOf('\n') + 1);
-                ln++;
-            }
-            os += processLine(text, ln);
-
-            /*
             Prism.tokenize(req.responseText, Prism.languages['python']).forEach(t => {
                 let currString = t;
                 if (t.hasOwnProperty('content')) {
@@ -838,46 +825,44 @@ function loadCode(tid) {
                         );
                     }
                 }
-                currString = currString.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-                console.log(ln);
-                console.log(globalThis.nodes[tid].lineno_map);
-                console.log(currString);
-                if (globalThis.nodes[tid].lineno_map.hasOwnProperty(ln)) {
-                    globalThis.nodes[tid].lineno_map[ln].forEach(c => {
-                        currString.replaceAll(c, `<span onclick="onFunctionClick(${c})">${c}</span>`)
-                    });
-                }
-                os += currString;
 
-                if (t.hasOwnProperty('content')) {
-                    if (typeof t.content == 'string') {
-                        ln += checkStr(t.content, re);
-                    }
-                    else {
-                        ln += t.content.reduce(
-                            (a, cv) => a + checkStr(cv, re),
-                            0
-                        );
-                    }
+                let cso = '';
+                while (currString.indexOf('\n') != -1) {
+                    cso += processLine(currString.substring(0, currString.indexOf('\n')), ln);
+                    cso += '\n';
+                    currString = currString.substring(currString.indexOf('\n') + 1);
+                    ln++;
+                }
+                cso += processLine(currString, ln);
+
+                if (t.type == 'triple-quoted-string') {
+                    t.type = 'comment';
+                }
+                if (t.type == undefined || t.type == 'punctuation') {
+                    os += cso.replaceAll('\n', '<br>');
                 }
                 else {
-                    ln += checkStr(t, re);
+                    os += `<span class="token ${t.type}">${cso.replaceAll('\n', '<br>')}</span>`;
                 }
-
-
             });
-            */
-            document.getElementById('code-loaded').innerHTML = os;
-            /*
-            document.getElementById('code-loaded').innerHTML = `
-            <pre>
-                <code class="language-python">
-                    ${req.responseText}
-                </code>
-            </pre>`;*/
+            os = os.split('<br>').map((l, i) => {
+                if (globalThis.nodes[tid].lineno_map.hasOwnProperty(i + 1)) {
+                    globalThis.nodes[tid].lineno_map[i + 1].forEach(c => {
+                        l = l.replaceAll(c[1], `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
+                    });
+                }
+                return l;
+            }).join('<br>');
+            console.log(os);
 
-            Prism.highlightAll();
+            document.getElementById('code-loaded').innerHTML = `
+            <pre class="language-python">
+                <code class="language-python">
+                    ${os}
+                </code>
+            </pre>`;
+
+            // Prism.highlightAll();
             //hljs.highlightAll();
             //hljs.initLineNumbersOnLoad();
 
