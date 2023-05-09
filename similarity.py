@@ -10,14 +10,15 @@ def simrank(adj_mat, N):
     nam = np.matmul(np.matmul(d12, adj_mat), d12)
     print(nam)
 
+sim_mat = np.load(os.path.join('./index/', "sim_mat.npy"))
+N = sim_mat.shape[0]
+with open(os.path.join('./index/', "file_key.txt")) as f:
+    j = json.loads(f.read())
+    i_to_f = j['id-to-f']
+    f_to_id = j['f-to-id']
+
 def get_similarity(OUTPUT_FOLDER, fname):
     try:
-        sim_mat = np.load(os.path.join(OUTPUT_FOLDER, "sim_mat.npy"))
-        N = sim_mat.shape[0]
-        with open(os.path.join(OUTPUT_FOLDER, "file_key.txt")) as f:
-            j = json.loads(f.read())
-            i_to_f = j['id-to-f']
-            f_to_id = j['f-to-id']
         tid = f_to_id[fname]
         mr = [(i, sim_mat[tid][i]) for i in range(N)]
         mr.sort(key=lambda x: -1*x[1])

@@ -481,7 +481,9 @@ function onFunctionClick(id, file, ft, f) {
 }
 
 function loadCodeOrFunction(parent, child) {
-    onFolderDoubleClick(parent);
+    if (!globalThis.ghostFolders.some(e => { return e.data.id == parent+'SIUUU'; })) {
+        onFolderDoubleClick(parent);
+    }
     if (globalThis.nodes.hasOwnProperty(child)) {
         loadCode(child);
     }
