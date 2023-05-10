@@ -7,6 +7,7 @@ from flask_cors import CORS
 
 import find_functions
 import similarity
+#import chatgpt.get_func as cgpt
 
 OUTPUT_FOLDER_PROCESSED = "./index/"
 OUTPUT_FOLDER_RAW = "./raw/"
@@ -113,6 +114,13 @@ def get_files():
 @app.route("/similar", methods=["GET"])
 def get_similar_functions():
     return similarity.get_similarity(OUTPUT_FOLDER_PROCESSED, f"{request.args['file']}|{request.args['function']}")
+
+@app.route("/explain", methods=["POST"])
+def get_explanation():
+    print(request.json['segment'])
+
+    return 'Some text \n Some text line 2\n some text some text some text some text some text \n i am chet gpt'
+    #return cgpt.get_response(request.json['segment'])
 
 @app.route("/raw", methods=["GET"])
 def get_file():

@@ -209,46 +209,6 @@ function augmentDependencySet(deps) {
 
 function computeDependencies(node, nodes) {
     for (const k in node.content.Import) {
-        /*
-        let imp = node.content.Import[k];
-        let cn = node;
-
-        // Go up however many levels of the import
-        for (let i = 0; i < imp.level; i += 1) {
-            cn = cn.parent;
-        }
-
-        // Go down each import
-        const fp = k.split('.');
-        let valid = true;
-
-        if (cn == undefined) {
-            valid = false;
-        }
-        else {
-            for (const j in fp) {
-                let next_file = fp[j];
-                if (cn.children_clean.hasOwnProperty(next_file.replaceAll('_', ''))) {
-                    cn = cn.children_clean[next_file.replaceAll('_', '')];
-                }
-                else if (cn.children_clean.hasOwnProperty(next_file.replace('_', '') + '.json')) {
-                    cn = cn.children_clean[next_file.replaceAll('_', '') + '.json'];
-                }
-                else {
-                    if (fp.length > 1 && j == fp.length - 1 && nodes.hasOwnProperty(cn.filepath) && node.filepath != cn.filepath) {
-                        node.dependencies.add(cn.filepath);
-                        nodes[cn.filepath].dependents.add(node.filepath);
-                    }
-                    valid = false;
-                }
-            }
-        }
-        if (valid && cn.filepath != node.filepath) {
-            node.dependencies.add(cn.filepath);
-            nodes[cn.filepath].dependents.add(node.filepath);
-        }
-        */
-
         if (nodes.hasOwnProperty(node.content.Import[k]['path'])) {
             node.dependencies.add(node.content.Import[k]['path']);
             nodes[node.content.Import[k]['path']].dependents.add(node.filepath);
@@ -280,59 +240,6 @@ function computeFolderDependencies(node) {
     });
 
     node.dependencies = augmentDependencySet(node.dependencies);
-}
-
-function topoSortNodes(nodes) {
-    let out = [];
-    let searchPath = [];
-    let inDegree = {};
-    let prevNodesProcessed = -1;
-    let nodesProcessed = 0;
-
-    for (const k in nodes) {
-        inDegree[k] = nodes[k].dependencies.length;
-    }
-
-    Object.keys(inDegree).forEach(e => {
-        if (inDegree[e] == 0) {
-            searchPath.push(e);
-        }
-    });
-
-    while (nodesProcessed != Object.keys(nodes).length && nodesProcessed != prevNodesProcessed) {
-        let currRow = [];
-        let numToPop = searchPath.length;
-
-        for (let i = 0; i < numToPop; i++) {
-            let fk = searchPath.pop();
-            currRow.push(fk);
-
-            Object.keys(nodes[fk].dependents).forEach(e => {
-                let dep = nodes[fk].dependents[e];
-                inDegree[dep] -= 1;
-                if (inDegree[dep] == 0) {
-                    searchPath.push(dep);
-                }
-            });
-        }
-
-        out.push(currRow);
-        prevNodesProcessed = nodesProcessed;
-        nodesProcessed += numToPop;
-    }
-
-    // There exists a cycle in these nodes, put them at the end -- sad!
-    if (nodesProcessed != Object.keys(nodes).length) {
-        let finalRow = [];
-        Object.keys(inDegree).forEach(e => {
-            if (inDegree[e] != 0) {
-                finalRow.push(e);
-            }
-        });
-        out.push(finalRow);
-    }
-
-    return out;
 }
 
 function updateNodesInView(ms) {
@@ -797,6 +704,51 @@ function highlightCallTree(name) {
     });
 }
 
+function closeExplanation() {
+    document.getElementById('explain-window').remove();
+    document.getElementById('code-info-widget').innerHTML = '<button title="Explain Code" onclick="searchFunctionDetail()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="M484 809q16 0 27-11t11-27q0-16-11-27t-27-11q-16 0-27 11t-11 27q0 16 11 27t27 11Zm-35-146h59q0-26 6.5-47.5T555 566q31-26 44-51t13-55q0-53-34.5-85T486 343q-49 0-86.5 24.5T345 435l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508 544q-30 26-44.5 51.5T449 663Zm31 313q-82 0-155-31.5t-127.5-86Q143 804 111.5 731T80 576q0-83 31.5-156t86-127Q252 239 325 207.5T480 176q83 0 156 31.5T763 293q54 54 85.5 127T880 576q0 82-31.5 155T763 858.5q-54 54.5-127 86T480 976Zm0-60q142 0 241-99.5T820 576q0-142-99-241t-241-99q-141 0-240.5 99T140 576q0 141 99.5 240.5T480 916Zm0-340Z"/></svg></button>';
+}
+
+function searchFunctionDetail() {
+    if (document.getElementById('code-loaded').contains(window.getSelection().anchorNode)) {
+        let query = window.getSelection().toString();
+        let req = new XMLHttpRequest();
+        req.onreadystatechange = function () {
+            if (req.readyState == 4 && req.status == 200) {
+                console.log(req.responseText);
+                document.getElementById('code-info-widget').innerHTML = '<button title="Explain Code" onclick="closeExplanation()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></button>';
+                const explanationWindow = document.createElement('div');
+                explanationWindow.id = 'explain-window';
+                explanationWindow.classList.add('explain-window');
+                explanationWindow.style.top = document.getElementById('code-info-widget').getBoundingClientRect().bottom - 3;
+                explanationWindow.innerHTML = `
+                    <h1>Code Explanation</h1>
+                    ${req.responseText.replaceAll(' ', '&nbsp;').replaceAll('\n', '<br>').replaceAll('"', '&quot;')}
+                `;
+
+                document.getElementById('sidebar').appendChild(explanationWindow);
+            }
+        }
+
+        req.open('POST', `http://localhost:5000/explain`);
+        req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        const data = JSON.stringify({"segment": query});
+        req.send(data);
+    }
+}
+
+function onMouseUpCode(event) {
+    if (document.getElementById('code-info-widget') != null) {
+        document.getElementById('code-info-widget').remove();
+    }
+    let codeInfoWidget = document.createElement('div');
+    codeInfoWidget.id = 'code-info-widget';
+    codeInfoWidget.classList.add('code-info-widget');
+    codeInfoWidget.innerHTML = '<button title="Explain Code" onclick="searchFunctionDetail()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="M484 809q16 0 27-11t11-27q0-16-11-27t-27-11q-16 0-27 11t-11 27q0 16 11 27t27 11Zm-35-146h59q0-26 6.5-47.5T555 566q31-26 44-51t13-55q0-53-34.5-85T486 343q-49 0-86.5 24.5T345 435l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508 544q-30 26-44.5 51.5T449 663Zm31 313q-82 0-155-31.5t-127.5-86Q143 804 111.5 731T80 576q0-83 31.5-156t86-127Q252 239 325 207.5T480 176q83 0 156 31.5T763 293q54 54 85.5 127T880 576q0 82-31.5 155T763 858.5q-54 54.5-127 86T480 976Zm0-60q142 0 241-99.5T820 576q0-142-99-241t-241-99q-141 0-240.5 99T140 576q0 141 99.5 240.5T480 916Zm0-340Z"/></svg></button>';
+    document.getElementById('sidebar').appendChild(codeInfoWidget);
+    codeInfoWidget.style.top = document.getElementById('graph-side').getBoundingClientRect().height;
+}
+
 function loadCode(tid) {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -838,7 +790,7 @@ function loadCode(tid) {
                 if (t.type == 'triple-quoted-string') {
                     t.type = 'comment';
                 }
-                if (t.type == undefined || t.type == 'punctuation') {
+                if (t.type == undefined || t.type == 'punctuation' || t.type == 'function' || t.type == 'builtin') {
                     os += cso.replaceAll('\n', '<br>');
                 }
                 else {
@@ -853,7 +805,6 @@ function loadCode(tid) {
                 }
                 return l;
             }).join('<br>');
-            console.log(os);
 
             document.getElementById('code-loaded').innerHTML = `
             <pre class="language-python">
@@ -862,9 +813,9 @@ function loadCode(tid) {
                 </code>
             </pre>`;
 
+            document.getElementById('code-loaded').addEventListener('mouseup', onMouseUpCode);
+
             // Prism.highlightAll();
-            //hljs.highlightAll();
-            //hljs.initLineNumbersOnLoad();
 
             globalThis.displayedCode = tid;
         }

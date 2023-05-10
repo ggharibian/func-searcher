@@ -202,3 +202,31 @@ button:hover {
 .folder-in-code {
   cursor: pointer;
 }
+
+.code-info-widget {
+  position: absolute;
+  background-color: white;
+  z-index: 15;
+  right: 13px;
+}
+
+.code-info-widget button {
+  margin: 0;
+  padding: 0;
+  fill: #a9a9a9;
+  border: 3px #03254E solid;
+}
+
+.code-info-widget button:hover {
+  background-color: white;
+  fill: #03254E;
+}
+
+.explain-window {
+  position: absolute;
+  z-index: 15;
+  background-color: white;
+  border: 3px #03254E solid;
+  width: 100%;
+  text-align: center;
+}
