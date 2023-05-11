@@ -17,6 +17,8 @@ f_to_id = {}
 
 def load_smat():
     global sim_mat
+    global i_to_f
+    global f_to_id
     sim_mat = np.load(os.path.join('./index/', "sim_mat.npy"))
     N = sim_mat.shape[0]
     with open(os.path.join('./index/', "file_key.txt")) as f:
@@ -26,6 +28,8 @@ def load_smat():
 
 def get_similarity(OUTPUT_FOLDER, fname):
     global sim_mat
+    global i_to_f
+    global f_to_id
     try:
         tid = f_to_id[fname]
         mr = [(i, sim_mat[tid][i]) for i in range(N)]
