@@ -36,9 +36,6 @@ function onFolderSelect() {
                             finalizeUpload();
                         }
                     }
-                    else if (r.readyState == 4 && r.status != 304) {
-                        alert('Request failed');
-                    }
                 }
 
                 formData.append("file", e);
