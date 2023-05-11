@@ -36,7 +36,7 @@ function onFolderSelect() {
                             finalizeUpload();
                         }
                     }
-                    else if (r.readyState == 4) {
+                    else if (r.readyState == 4 && r.status != 304) {
                         alert('Request failed');
                     }
                 }
