@@ -14,11 +14,13 @@ def simrank(adj_mat, N):
 sim_mat = None
 i_to_f = {}
 f_to_id = {}
+N = 0
 
 def load_smat():
     global sim_mat
     global i_to_f
     global f_to_id
+    global N
     sim_mat = np.load(os.path.join('./index/', "sim_mat.npy"))
     N = sim_mat.shape[0]
     with open(os.path.join('./index/', "file_key.txt")) as f:
@@ -30,6 +32,7 @@ def get_similarity(OUTPUT_FOLDER, fname):
     global sim_mat
     global i_to_f
     global f_to_id
+    global N
     try:
         tid = f_to_id[fname]
         mr = [(i, sim_mat[tid][i]) for i in range(N)]

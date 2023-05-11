@@ -312,7 +312,7 @@ function removeChildRenderRestriction(n) {
 }
 
 function updatePopupPosition() {
-    if (globalThis.popupId != undefined) {
+    if (globalThis.popupId != undefined && document.getElementById(globalThis.popupId) != null) {
         const bbox1 = document.getElementById('popup').getBoundingClientRect();
         const bbox2 = document.getElementById(globalThis.popupId).getBoundingClientRect();
         if (bbox2.top < 39) {
@@ -397,7 +397,7 @@ function loadCodeOrFunction(parent, child) {
         onFolderDoubleClick(parent);
     }
     if (globalThis.nodes.hasOwnProperty(child)) {
-        loadCode(child);
+        loadCode(child, undefined);
     }
     else {
         loadFolder(child);
@@ -553,7 +553,7 @@ function updateView() {
         globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
 
         if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
-            loadCode(tid);
+            loadCode(tid, undefined);
         }
         else if (globalThis.folders.hasOwnProperty(tid)) {
             loadFolder(tid);
@@ -754,7 +754,13 @@ function onMouseUpCode(event) {
     codeInfoWidget.style.top = document.getElementById('graph-side').getBoundingClientRect().height;
 }
 
-function loadCode(tid) {
+function scrollToFunction(fname) {
+    return function() {
+        document.getElementById(`line-${globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0]}`).scrollIntoView();
+    }
+}
+
+function loadCode(tid, postExecutionCallback) {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
         if (req.readyState == 4 && req.status == 200) {
@@ -820,9 +826,10 @@ function loadCode(tid) {
 
             document.getElementById('code-loaded').addEventListener('mouseup', onMouseUpCode);
 
-            // Prism.highlightAll();
-
             globalThis.displayedCode = tid;
+            if (postExecutionCallback != undefined) {
+                postExecutionCallback();
+            }
         }
     }
     req.open('GET', `http://localhost:5000/raw?fpath=${tid.replace('json', 'py')}`);
@@ -886,11 +893,10 @@ function setSearchView() {
                     if (globalThis.activeName.indexOf(' ') != 0) {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
-                        loadCode(filename);
+                        loadCode(filename, scrollToFunction(functionName));
                         onFunctionClick(`line-${globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0]}`, filename, FunctionType.Definition, functionName);
 
                         let fpathArr = filename.split('/');
-                        console.log(fpathArr);
                         let cpath = fpathArr[0];
                         let i = 1;
                         while (globalThis.cy.nodes(`node[id="${cpath}"]`).length == 0) {
@@ -921,7 +927,7 @@ function setSearchView() {
                         globalThis.cy.center(globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`));
                     }
                     else {
-                        loadCode(globalThis.activeName);
+                        loadCode(globalThis.activeName, undefined);
                     }
 
                     /*close the list of autocompleted values,
