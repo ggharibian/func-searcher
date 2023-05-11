@@ -332,9 +332,61 @@ function closePopup() {
     globalThis.popupId = undefined;
 }
 
+function goToFunction(functionName, filename) {
+    loadCode(filename, scrollToFunction(functionName));
+    let lineno = 0;
+    let ftype = FunctionType.Definition;
+    if (globalThis.nodes[filename].content.FunctionDef.hasOwnProperty(functionName)) {
+        lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
+        ftype = FunctionType.Definition;
+    }
+    else if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
+        lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
+        ftype = FunctionType.Call;
+    }
+    else {
+        // classdef
+    }
+    onFunctionClick(`line-${lineno}`, filename, ftype, functionName);
+
+    let fpathArr = filename.split('/');
+    let cpath = fpathArr[0];
+    let i = 1;
+    while (globalThis.cy.nodes(`node[id="${cpath}"]`).length == 0) {
+        cpath += '/';
+        cpath += fpathArr[i];
+        i++;
+        if (i >= fpathArr.length) {
+            break;
+        }
+    }
+    if (globalThis.cy.nodes(`node[id="${cpath}"]`).length != 0) {
+        while (cpath != filename) {
+            onFolderDoubleClick(cpath);
+            cpath += '/';
+            cpath += fpathArr[i];
+            i++;
+        }
+        globalThis.cy.animate({ center: { eles: globalThis.cy.nodes(`node[id="${cpath}"]`) } }, { duration: 1000 });
+    }
+    else {
+        globalThis.cy.animate({ center: { eles: globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`) } }, { duraiton: 1000 });
+    }
+}
+
+function safeGoToFunction(file, func) {
+    if (!globalThis.nodes.hasOwnProperty(file)) {
+        console.log('NO SUCH FILE');
+    }
+    else {
+        globalThis.cy.nodes().unselect();
+        goToFunction(func, file);
+    }
+}
+
 function getDefined(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div style="cursor: pointer;">${m}</div>`).join('');
     }
     else {
         return "Function Definition"
@@ -343,10 +395,10 @@ function getDefined(file, f, ft) {
 
 function getOtherCalls(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div>${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}')" style="cursor: pointer;">${m}</div>`).join('');
     }
     else {
-        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div>${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}')" style="cursor: pointer;">${m}</div>`).join('');
     }
 }
 
@@ -380,7 +432,7 @@ function onFunctionClick(id, file, ft, f) {
                 </div>
                 <div class='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${JSON.parse(req.responseText).map(m => `<div>${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
+                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}')" style="cursor: pointer;">${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
                 </div>
             `;
             popup.classList.add('popup');
@@ -720,7 +772,6 @@ function searchFunctionDetail() {
         let req = new XMLHttpRequest();
         req.onreadystatechange = function () {
             if (req.readyState == 4 && req.status == 200) {
-                console.log(req.responseText);
                 document.getElementById('code-info-widget').innerHTML = '<button title="Explain Code" onclick="closeExplanation()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></button>';
                 const explanationWindow = document.createElement('div');
                 explanationWindow.id = 'explain-window';
@@ -737,7 +788,7 @@ function searchFunctionDetail() {
 
         req.open('POST', `http://localhost:5000/explain`);
         req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        const data = JSON.stringify({"segment": query});
+        const data = JSON.stringify({ "segment": query });
         req.send(data);
     }
 }
@@ -755,8 +806,18 @@ function onMouseUpCode(event) {
 }
 
 function scrollToFunction(fname) {
-    return function() {
-        document.getElementById(`line-${globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0]}`).scrollIntoView();
+    return function () {
+        let ln = undefined;
+        if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
+            ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
+        }
+        else if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)) {
+            ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+        }
+        else {
+            ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'][0];
+        }
+        document.getElementById(`line-${ln}`).scrollIntoView();
     }
 }
 
@@ -893,38 +954,7 @@ function setSearchView() {
                     if (globalThis.activeName.indexOf(' ') != 0) {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
-                        loadCode(filename, scrollToFunction(functionName));
-                        onFunctionClick(`line-${globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0]}`, filename, FunctionType.Definition, functionName);
-
-                        let fpathArr = filename.split('/');
-                        let cpath = fpathArr[0];
-                        let i = 1;
-                        while (globalThis.cy.nodes(`node[id="${cpath}"]`).length == 0) {
-                            cpath += '/';
-                            cpath += fpathArr[i];
-                            i++;
-                            if (i >= fpathArr.length) {
-                                break;
-                            }
-                        }
-                        if (globalThis.cy.nodes(`node[id="${cpath}"]`).length != 0) {
-                            while (cpath != filename) {
-                                onFolderDoubleClick(cpath);
-                                cpath += '/';
-                                cpath += fpathArr[i];
-                                i++;
-                            }
-                            globalThis.cy.center(globalThis.cy.nodes(`node[id="${cpath}"]`));
-                        }
-                        /*
-                        while (.length == 0) {
-
-                        }
-                        */
-                        //console.log(globalThis.nodes[filename].filepath);
-                        //console.log(globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`));
-
-                        globalThis.cy.center(globalThis.cy.nodes(`node[id="${globalThis.nodes[filename].filepath}"]`));
+                        goToFunction(functionName, filename);
                     }
                     else {
                         loadCode(globalThis.activeName, undefined);
@@ -1117,7 +1147,7 @@ function goToView() {
             updateSlider();
 
             updateGraphViewOnZoom(undefined);
-            globalThis.cy.center();
+            globalThis.cy.animate({ center: globalThis.cy.nodes() }, { duration: 1000 });
         }
     }
     req.open('GET', 'http://localhost:5000/files');
