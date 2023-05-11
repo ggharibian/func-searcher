@@ -78,7 +78,7 @@ def process_file():
 @app.route("/postprocess", methods=['POST'])
 def postprocess_files():
     find_functions.postprocess_index(OUTPUT_FOLDER_PROCESSED)
-
+    similarity.load_smat()
     return ''
 
 @app.route("/files", methods=["GET"])

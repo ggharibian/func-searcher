@@ -10,14 +10,22 @@ def simrank(adj_mat, N):
     nam = np.matmul(np.matmul(d12, adj_mat), d12)
     print(nam)
 
-sim_mat = np.load(os.path.join('./index/', "sim_mat.npy"))
-N = sim_mat.shape[0]
-with open(os.path.join('./index/', "file_key.txt")) as f:
-    j = json.loads(f.read())
-    i_to_f = j['id-to-f']
-    f_to_id = j['f-to-id']
+
+sim_mat = None
+i_to_f = {}
+f_to_id = {}
+
+def load_smat():
+    global sim_mat
+    sim_mat = np.load(os.path.join('./index/', "sim_mat.npy"))
+    N = sim_mat.shape[0]
+    with open(os.path.join('./index/', "file_key.txt")) as f:
+        j = json.loads(f.read())
+        i_to_f = j['id-to-f']
+        f_to_id = j['f-to-id']
 
 def get_similarity(OUTPUT_FOLDER, fname):
+    global sim_mat
     try:
         tid = f_to_id[fname]
         mr = [(i, sim_mat[tid][i]) for i in range(N)]
@@ -26,5 +34,8 @@ def get_similarity(OUTPUT_FOLDER, fname):
     except Exception as e:
         print(e) # TODO: FIX!!!
         return []
+
+if os.path.exists(os.path.join('./index/', "sim_mat.npy")):
+    load_smat()
 
 #get_similarity("scikit-learn/sklearn/linear_model/_linear_loss.json|weight_intercept")
