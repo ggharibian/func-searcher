@@ -151,12 +151,35 @@ button:hover {
   border-bottom: 2px solid #03254E;
   font-size: 24px;
   margin: 0;
-  margin-bottom: 5px;
   padding-bottom: 3px;
 }
 
 .popup-toprow-elem {
   width: 50%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
+  padding-top: 4px;
+}
+
+.sim-functions {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+  border-top: 2px solid #03254E;
+}
+
+.sim-functions h2 {
+  font-size: 18;
+  padding: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.popup-toprow-elem h2 {
+  font-size: 18;
+  padding: 0;
+  margin: 0;
 }
 
 .popup-toprow {

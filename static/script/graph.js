@@ -334,7 +334,7 @@ function closePopup() {
 
 function getDefined(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`);
+        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div>${m}</div>`).join('');
     }
     else {
         return "Function Definition"
@@ -369,13 +369,18 @@ function onFunctionClick(id, file, ft, f) {
                 <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
                 </button>
                 <div class='popup-toprow'>
-                    <div class='popup-toprow-elem'>Defined</div>
-                    ${getDefined(file, f, ft)}
-                    <div class='popup-toprow-elem'>Other Calls</div>
-                    ${getOtherCalls(file, f, ft)}
+                    <div class='popup-toprow-elem' style="border-right: 1px #03254E solid;">
+                        <h2>Defined</h2>
+                        ${getDefined(file, f, ft)}
+                    </div>
+                    <div class='popup-toprow-elem' style="border-left: 1px #03254E solid;">
+                        <h2>Other Calls</h2>
+                        ${getOtherCalls(file, f, ft)}
+                    </div>
                 </div>
-                <div>
-                    ${JSON.parse(req.responseText).map(m => `<div>${m[0]}</div>`)}
+                <div class='sim-functions'>
+                    <h2>Similar Functions</h2>
+                    ${JSON.parse(req.responseText).map(m => `<div>${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
                 </div>
             `;
             popup.classList.add('popup');
