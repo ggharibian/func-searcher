@@ -463,12 +463,12 @@ function onFunctionClick(id, file, ft, f) {
                 <button onclick="closePopup()">
                 <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
                 </button>
-                <div class='popup-toprow'>
-                    <div class='popup-toprow-elem' style="border-right: 1px #03254E solid;">
+                <div class='popup-toprow' id='par-row'>
+                    <div class='popup-toprow-elem' id='defbox' style="border-right: 1px #03254E solid;">
                         <h2 id='def-title'>Defined</h2>
                         ${getDefined(file, f, ft)}
                     </div>
-                    <div class='popup-toprow-elem' style="border-left: 1px #03254E solid;">
+                    <div class='popup-toprow-elem' id='callbox' style="border-left: 1px #03254E solid;">
                         <h2>Called</h2>
                         ${getOtherCalls(file, f, ft)}
                     </div>
@@ -480,6 +480,8 @@ function onFunctionClick(id, file, ft, f) {
             `;
             popup.classList.add('popup');
             document.getElementById('main-content').appendChild(popup);
+            document.getElementById('defbox').style.paddingRight = `${Math.max(8, (document.getElementById('defbox').getBoundingClientRect().left - document.getElementById('par-row').getBoundingClientRect().left) / 2)}px`;
+            document.getElementById('callbox').style.paddingLeft = `${Math.max(8, (document.getElementById('par-row').getBoundingClientRect().right - document.getElementById('callbox').getBoundingClientRect().right) / 2)}px`;
             updatePopupPosition();
         }
     }
