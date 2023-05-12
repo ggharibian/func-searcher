@@ -698,6 +698,10 @@ def postprocess_index(root):
             function_defs[f][fd]['other-calls'] = other_calls[f"${f}|{fd}"] if f"${f}|{fd}" in other_calls else []
             if len(function_defs[f][fd]['other-calls']) > 5:
                 function_defs[f][fd]['other-calls'] = function_defs[f][fd]['other-calls'][0:5]
+        for cd in class_defs[f]:
+            class_defs[f][cd]['other-calls'] = other_calls[f"${f}|{cd}"] if f"${f}|{cd}" in other_calls else []
+            if len(class_defs[f][cd]['other-calls']) > 5:
+                class_defs[f][cd]['other-calls'] = class_defs[f][cd]['other-calls'][0:5]
 
     # g = Graph()
     # f_to_v = {}
@@ -812,5 +816,6 @@ def postprocess_index(root):
     for f in files:
         with open(os.path.join(out_path, f), 'w') as of:
             of.write(json.dumps(files[f].content))
+    print('Postprocessing complete: 👍hci')
 
 #postprocess_index(OUTPUT_FOLDER)

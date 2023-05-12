@@ -6,7 +6,8 @@ const NodeTypes = {
 
 const FunctionType = {
     Call: 0,
-    Definition: 1
+    Definition: 1,
+    ClassDef: 2
 }
 
 class FileNode {
@@ -164,6 +165,13 @@ function getNodes(curr_node_key, subtree, node_dict, folder_dict, parent) {
                 }
                 new_node.lineno_map[fdn].push([FunctionType.Definition, fc]);
             });
+        });
+        Object.keys(new_node.content['ClassDef']).forEach(fc => {
+            const fdn = new_node.content['ClassDef'][fc]['lineno'];
+            if (!new_node.lineno_map.hasOwnProperty(fdn)) {
+                new_node.lineno_map[fdn] = [];
+            }
+            new_node.lineno_map[fdn].push([FunctionType.ClassDef, fc]);
         });
     }
     else if (subtree[curr_node_key]['node-type'] == 'folder') {
@@ -332,21 +340,40 @@ function closePopup() {
     globalThis.popupId = undefined;
 }
 
-function goToFunction(functionName, filename) {
-    loadCode(filename, scrollToFunction(functionName));
+function goToFunction(functionName, filename, preference) {
+    loadCode(filename, scrollToFunction(functionName, preference));
     let lineno = 0;
     let ftype = FunctionType.Definition;
-    if (globalThis.nodes[filename].content.FunctionDef.hasOwnProperty(functionName)) {
-        lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
-        ftype = FunctionType.Definition;
-    }
-    else if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
-        lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
-        ftype = FunctionType.Call;
+    if (preference == 'Def') {
+        if (globalThis.nodes[filename].content.FunctionDef.hasOwnProperty(functionName)) {
+            lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
+            ftype = FunctionType.Definition;
+        }
+        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)){
+            lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
+            ftype = FunctionType.ClassDef;
+        }
+        else {
+            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
+            ftype = FunctionType.Call;
+        }
+
     }
     else {
-        // classdef
+        if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
+            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
+            ftype = FunctionType.Call;
+        }
+        else if (globalThis.nodes[filename].content.FunctionDef.hasOwnProperty(functionName)) {
+            lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
+            ftype = FunctionType.Definition;
+        }
+        else {
+            lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
+            ftype = FunctionType.ClassDef;
+        }
     }
+
     onFunctionClick(`line-${lineno}`, filename, ftype, functionName);
 
     let fpathArr = filename.split('/');
@@ -374,36 +401,52 @@ function goToFunction(functionName, filename) {
     }
 }
 
-function safeGoToFunction(file, func) {
+function safeGoToFunction(file, func, preference) {
     if (!globalThis.nodes.hasOwnProperty(file)) {
-        console.log('NO SUCH FILE');
+        const extImportDialog = document.createElement('div');
+        extImportDialog.id = 'external-import-dialog';
+        if (file == 'builtin') {
+            extImportDialog.innerHTML = `This is a builtin function or class in Python`;
+        }
+        else {
+            extImportDialog.innerHTML = `This is an external import: check the library documentation`;
+        }
+        extImportDialog.classList.add('external-import-dialog');
+        document.getElementById('main-content').appendChild(extImportDialog);
+        const tbox = document.getElementById('def-title').getBoundingClientRect();
+        const mbox = extImportDialog.getBoundingClientRect();
+        extImportDialog.style.top = tbox.top;
+        extImportDialog.style.left = tbox.left + (tbox.width - mbox.width) / 2;
+        setTimeout(function(){ document.getElementById('external-import-dialog').remove(); }, 3000);
     }
     else {
         globalThis.cy.nodes().unselect();
-        goToFunction(func, file);
+        goToFunction(func, file, preference);
     }
 }
 
 function getDefined(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Def')" style="cursor: pointer;">${m}</div>`).join('');
     }
     else {
-        return "Function Definition"
+        return `<span>Right here👍 </span>`;
     }
 }
 
 function getOtherCalls(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
+    }
+    else if (ft == FunctionType.Definition) {
+        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
     }
     else {
-        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.ClassDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
     }
 }
 
 function onFunctionClick(id, file, ft, f) {
-
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
         if (req.readyState == 4 && req.status == 200) {
@@ -422,17 +465,17 @@ function onFunctionClick(id, file, ft, f) {
                 </button>
                 <div class='popup-toprow'>
                     <div class='popup-toprow-elem' style="border-right: 1px #03254E solid;">
-                        <h2>Defined</h2>
+                        <h2 id='def-title'>Defined</h2>
                         ${getDefined(file, f, ft)}
                     </div>
                     <div class='popup-toprow-elem' style="border-left: 1px #03254E solid;">
-                        <h2>Other Calls</h2>
+                        <h2>Called</h2>
                         ${getOtherCalls(file, f, ft)}
                     </div>
                 </div>
                 <div class='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}')" style="cursor: pointer;">${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
+                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}', 'Def')" style="cursor: pointer;">${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
                 </div>
             `;
             popup.classList.add('popup');
@@ -797,26 +840,45 @@ function onMouseUpCode(event) {
     if (document.getElementById('code-info-widget') != null) {
         document.getElementById('code-info-widget').remove();
     }
+
     let codeInfoWidget = document.createElement('div');
     codeInfoWidget.id = 'code-info-widget';
     codeInfoWidget.classList.add('code-info-widget');
+    codeInfoWidget.style.right = `14px`;
     codeInfoWidget.innerHTML = '<button title="Explain Code" onclick="searchFunctionDetail()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="M484 809q16 0 27-11t11-27q0-16-11-27t-27-11q-16 0-27 11t-11 27q0 16 11 27t27 11Zm-35-146h59q0-26 6.5-47.5T555 566q31-26 44-51t13-55q0-53-34.5-85T486 343q-49 0-86.5 24.5T345 435l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508 544q-30 26-44.5 51.5T449 663Zm31 313q-82 0-155-31.5t-127.5-86Q143 804 111.5 731T80 576q0-83 31.5-156t86-127Q252 239 325 207.5T480 176q83 0 156 31.5T763 293q54 54 85.5 127T880 576q0 82-31.5 155T763 858.5q-54 54.5-127 86T480 976Zm0-60q142 0 241-99.5T820 576q0-142-99-241t-241-99q-141 0-240.5 99T140 576q0 141 99.5 240.5T480 916Zm0-340Z"/></svg></button>';
     document.getElementById('sidebar').appendChild(codeInfoWidget);
     codeInfoWidget.style.top = document.getElementById('graph-side').getBoundingClientRect().height;
 }
 
-function scrollToFunction(fname) {
+function scrollToFunction(fname, preference) {
     return function () {
         let ln = undefined;
-        if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
-            ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
-        }
-        else if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)) {
-            ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+        if (preference == 'Def') {
+            if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
+            }
+            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname))  {
+                console.log('here');
+                ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
+            }
+            else {
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+            }
         }
         else {
-            ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'][0];
+            if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)){
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+            }
+            else if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
+            }
+
+            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname))  {
+                ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
+            }
+
         }
+        console.log(ln);
         document.getElementById(`line-${ln}`).scrollIntoView();
     }
 }
@@ -880,7 +942,7 @@ function loadCode(tid, postExecutionCallback) {
 
             document.getElementById('code-loaded').innerHTML = `
             <h2>${tid}</h2>
-            <pre class="language-python">
+            <pre class="language-python" style="overflow-x: scroll; width: max-content;">
                 <code class="language-python">
                     ${os}
                 </code>
@@ -952,7 +1014,7 @@ function setSearchView() {
                     if (globalThis.activeName.indexOf(' ') != -1) {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
-                        goToFunction(functionName, filename);
+                        goToFunction(functionName, filename, 'Def');
                     }
                     else {
                         loadCode(globalThis.activeName, undefined);

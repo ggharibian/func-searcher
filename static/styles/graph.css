@@ -33,9 +33,10 @@ body {
 }
 
 #code-loaded {
-  height: 85vh;
+  height: 78vh;
   overflow-y: auto;
   padding: 10px;
+  scroll-behavior: smooth;
 }
 
 .zoom-text {
@@ -144,6 +145,7 @@ button:hover {
   flex-direction: column;
   text-align: center;
   right: 35vw;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
 }
 
 .popup h1 {
@@ -230,7 +232,7 @@ button:hover {
   position: absolute;
   background-color: white;
   z-index: 15;
-  right: 13px;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
 }
 
 .code-info-widget button {
@@ -252,4 +254,13 @@ button:hover {
   border: 3px #03254E solid;
   width: 100%;
   text-align: center;
+}
+
+.external-import-dialog {
+  z-index: 18;
+  position: absolute;
+  background-color: white;
+  border: #03254E 2px solid;
+  box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  padding: 4px;
 }
