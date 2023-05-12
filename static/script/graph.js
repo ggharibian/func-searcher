@@ -593,7 +593,15 @@ function updateView() {
 
     let onMouseOut = event => {
         if (!globalThis.currSelection.has(event.target.data('id'))) {
-            event.target.connectedEdges().style({ 'line-color': '#ccc' });
+            if (!globalThis.currSearchDepSet.hasOwnProperty(event.target.data('id'))) {
+                event.target.connectedEdges().style({ 'line-color': '#ccc' });
+            }
+            else {
+                event.target.connectedEdges().style({ 'line-color': '#ccc' });
+                globalThis.currSearchDepSet[event.target.data('id')].forEach(e => {
+                    globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
+                });
+            }
         }
         if (document.getElementById('local-name') != null) {
             document.getElementById('local-name').remove();
@@ -796,8 +804,10 @@ function highlightCallTree(name) {
         }
     }
 
+    globalThis.currSearchDepSet = {};
     Object.keys(depNodeSet).forEach(k => {
         globalThis.cy.nodes(`node[id="${k}"]`).style({ 'background-color': 'red' });
+        globalThis.currSearchDepSet[k] = Array.from(depEdgeSet).filter(e => e[0] == k || e[1] == k);
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
@@ -1137,6 +1147,7 @@ function goToView() {
             globalThis.folders[root_node.filepath] = root_node;
             globalThis.ghostFolders = [];
             globalThis.currSelection = new Set();
+            globalThis.currSearchDepSet = {};
             globalThis.activeName = undefined;
 
             for (const k in globalThis.nodes) {
@@ -1218,6 +1229,7 @@ function onClearSelection() {
     globalThis.cy.elements().remove();
     globalThis.activeName = undefined;
     updateView();
+    globalThis.currSearchDepSet = {};
     document.getElementById('func-search').value = '';
 }
 
