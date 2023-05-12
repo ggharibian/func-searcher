@@ -879,6 +879,7 @@ function loadCode(tid, postExecutionCallback) {
             }).join('<br>');
 
             document.getElementById('code-loaded').innerHTML = `
+            <h2>${tid}</h2>
             <pre class="language-python">
                 <code class="language-python">
                     ${os}
@@ -900,14 +901,11 @@ function loadCode(tid, postExecutionCallback) {
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
 function setSearchView() {
     let inp = document.getElementById('func-search');
-    let arr = [];
+    let arr = Object.keys(globalThis.nodes);
     Object.keys(globalThis.functionDefs).forEach(fDef => {
         globalThis.functionDefs[fDef].forEach(file => {
             arr.push(`${fDef} (${file.replace('json', 'py')})`)
         });
-        if (globalThis.functionDefs[fDef].length == 0) {
-            arr.push(fDef.replace('json', 'py'));
-        }
     });
     /*the autocomplete function takes two arguments,
     the text field element and an array of possible autocompleted values:*/
@@ -951,7 +949,7 @@ function setSearchView() {
                     globalThis.cy.elements().remove();
                     updateView();
 
-                    if (globalThis.activeName.indexOf(' ') != 0) {
+                    if (globalThis.activeName.indexOf(' ') != -1) {
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
                         goToFunction(functionName, filename);
@@ -1147,7 +1145,7 @@ function goToView() {
             updateSlider();
 
             updateGraphViewOnZoom(undefined);
-            globalThis.cy.animate({ center: globalThis.cy.nodes() }, { duration: 1000 });
+            globalThis.cy.center();
         }
     }
     req.open('GET', 'http://localhost:5000/files');
