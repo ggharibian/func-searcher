@@ -199,13 +199,26 @@ def parse_file(filepath):
                 ml = max(ml, ni.lineno)
         return ml
 
+    # get list of parameters from function
+    def get_params(n):
+        n = n.args
+        out = []
+        if n.posonlyargs != None:
+            out += [a.arg for a in n.posonlyargs]
+        if n.args != None:
+            out += [a.arg for a in n.args]
+        if n.kwonlyargs != None:
+            out += [a.arg for a in n.kwonlyargs]
+        if n.vararg != None:
+            out.append(n.vararg.arg)
+        if n.kwarg != None:
+            out.append(n.kwarg.arg)
+        return out
+
+
     # Iterate over the tree
     for n in tree:
         if type(n) == ast.FunctionDef:
-            #bl = {}
-            #for ni in ast.walk(n.body):
-            #    bl[str(type(ni))] = bl.get(str(type(ni)), 0) + 1
-            #print(n.name, bl)
             if n.name in function_def:
                 function_def[n.name]['lineno'].append(n.lineno)
                 function_def[n.name]['line-end'].append(get_line_end(n))
@@ -214,6 +227,7 @@ def parse_file(filepath):
                     'calls': [],
                     'lineno': [n.lineno],
                     'line-end': [get_line_end(n)],
+                    'params': get_params(n)
                 }
 
         elif type(n) == ast.Import:
