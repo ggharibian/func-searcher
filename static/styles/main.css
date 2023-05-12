@@ -24,6 +24,7 @@ h1 {
   border: none;
   padding-bottom: 10px;
   background-color: white;
+  box-shadow: rgba(100, 100, 111, 0.4) 0px 9px 31px 0px;
 }
 
 button {

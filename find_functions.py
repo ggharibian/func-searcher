@@ -279,7 +279,7 @@ def parse_file(filepath):
 
     def check_imports(f):
         for i in imports:
-            if f"{f.find(imports[i]['alias'])}." == 0:
+            if f.find(f"{imports[i]['alias']}.") == 0:
                 return [i], f
         return None
 
@@ -610,7 +610,7 @@ def postprocess_index(root):
         for i in imports[f]:
             imports[f][i]['path'] = resolve_import_path(start_node, (imports[f][i]['level'], i))
         for fc in function_calls[f]:
-            function_calls[f][fc]['defined'] = set([imports[f][d]['path'] if d in imports[f] else d for d in function_calls[f][fc]['defined']])
+            function_calls[f][fc]['defined'] = set([(imports[f][d]['path'] if imports[f][d]['path'] != '' else d) if d in imports[f] else d for d in function_calls[f][fc]['defined']])
 
     # We have no clue at all where this function is defined, try to resolve via
     # searching local imports, then global (pip) imports
