@@ -725,16 +725,16 @@ def postprocess_index(root):
             if f in function_calls[f][fc]['other-calls']:
                 function_calls[f][fc]['other-calls'].remove(f)
             function_calls[f][fc]['other-calls'] = list(function_calls[f][fc]['other-calls'])
-            if len(function_calls[f][fc]['other-calls']) > 5:
-                function_calls[f][fc]['other-calls'] = function_calls[f][fc]['other-calls'][0:5]
+            #if len(function_calls[f][fc]['other-calls']) > 5:
+            #    function_calls[f][fc]['other-calls'] = function_calls[f][fc]['other-calls'][0:5]
         for fd in function_defs[f]:
             function_defs[f][fd]['other-calls'] = other_calls[f"${f}|{fd}"] if f"${f}|{fd}" in other_calls else []
-            if len(function_defs[f][fd]['other-calls']) > 5:
-                function_defs[f][fd]['other-calls'] = function_defs[f][fd]['other-calls'][0:5]
+            #if len(function_defs[f][fd]['other-calls']) > 5:
+            #    function_defs[f][fd]['other-calls'] = function_defs[f][fd]['other-calls'][0:5]
         for cd in class_defs[f]:
             class_defs[f][cd]['other-calls'] = other_calls[f"${f}|{cd}"] if f"${f}|{cd}" in other_calls else []
-            if len(class_defs[f][cd]['other-calls']) > 5:
-                class_defs[f][cd]['other-calls'] = class_defs[f][cd]['other-calls'][0:5]
+            #if len(class_defs[f][cd]['other-calls']) > 5:
+            #    class_defs[f][cd]['other-calls'] = class_defs[f][cd]['other-calls'][0:5]
 
     # g = Graph()
     # f_to_v = {}
