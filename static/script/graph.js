@@ -32,6 +32,7 @@ class FileNode {
     dependencies = new Set();
     dependents = new Set();
     lineno_map = {};
+    callMap = {};
 }
 
 const SIZE_SCALE_FACTOR = 20;
@@ -788,8 +789,28 @@ function highlightCallTreeFunction(fileArr, func) {
     }
 
     globalThis.nodes[fileName].content['FunctionDef'][func]['other-calls'].forEach(c => {
-
+        if (globalThis.nodes.hasOwnProperty(c)) {
+            searchQueue.push([c, func, fileName]);
+        }
     });
+
+    while (searchQueue.length != 0) {
+        let cfa = searchQueue.pop();
+        let fqfunc = cfa[2] + '|' + cfa[1];
+
+        if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].callMap.hasOwnProperty(fqfunc)) continue
+
+        depNodeSet[cfa[0]] = 'dependent';
+        depEdgeSet.add([cfa[0], cfa[2], 'blue']);
+        globalThis.nodes[cfa[0]].callMap[fqfunc].forEach(fdef => {
+            globalThis.nodes[cfa[0]].content.FunctionDef[fdef]['other-calls'].forEach(oc => {
+                if (globalThis.nodes.hasOwnProperty(oc)) {
+                    searchQueue.push([oc, fdef, cfa[0]]);
+                }
+            });
+        });
+        processedNodeSet.add(cfa[0]);
+    }
 
     highlightSet(depEdgeSet, depNodeSet);
 }
@@ -1154,6 +1175,25 @@ function setSearchView() {
     });
 }
 
+function getCallMap(node) {
+    let callMap = {};
+
+    Object.keys(node.content.FunctionCall).forEach(c => {
+        Object.keys(node.content.FunctionDef).forEach(fd => {
+            for (let i = 0; i < node.content.FunctionDef[fd]['lineno'].length; i++) {
+                if (node.content.FunctionDef[fd]['lineno'][i] <= node.content.FunctionCall[c]['line_num'] && node.content.FunctionDef[fd]['line-end'][i] >= node.content.FunctionCall[c]['line_num']) {
+                    if (!callMap.hasOwnProperty(node.content.FunctionCall[c]['defined']+'|'+c)) {
+                        callMap[node.content.FunctionCall[c]['defined']+'|'+c] = [];
+                    }
+                    callMap[node.content.FunctionCall[c]['defined']+'|'+c].push(fd);
+                }
+            }
+        });
+    });
+
+    return callMap;
+}
+
 function goToView() {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -1221,6 +1261,9 @@ function goToView() {
             }
             for (const k in globalThis.folders) {
                 globalThis.folders[k].dependents = augmentDependencySet(globalThis.folders[k].dependents);
+            }
+            for (const k in globalThis.nodes) {
+                globalThis.nodes[k].callMap = getCallMap(globalThis.nodes[k]);
             }
             computeNodeLoc(root_node);
 
