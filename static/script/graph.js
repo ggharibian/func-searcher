@@ -223,6 +223,7 @@ function computeDependencies(node, nodes) {
         }
     }
 
+    node.originalDependencies = node.dependencies;
     node.dependencies = augmentDependencySet(node.dependencies);
 }
 
@@ -341,7 +342,7 @@ function closePopup() {
 }
 
 function goToFunction(functionName, filename, preference) {
-    loadCode(filename, scrollToFunction(functionName, preference));
+
     let lineno = 0;
     let ftype = FunctionType.Definition;
     if (preference == 'Def') {
@@ -353,9 +354,13 @@ function goToFunction(functionName, filename, preference) {
             lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
             ftype = FunctionType.ClassDef;
         }
-        else {
+        else if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
             lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
             ftype = FunctionType.Call;
+        }
+        else {
+            console.log('Not found!!! ');
+            return;
         }
 
     }
@@ -368,12 +373,17 @@ function goToFunction(functionName, filename, preference) {
             lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
             ftype = FunctionType.Definition;
         }
-        else {
+        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)){
             lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
             ftype = FunctionType.ClassDef;
         }
+        else {
+            console.log('Not found!!! ');
+            return;
+        }
     }
 
+    loadCode(filename, scrollToFunction(functionName, preference));
     onFunctionClick(`line-${lineno}`, filename, ftype, functionName);
 
     let fpathArr = filename.split('/');
@@ -743,36 +753,76 @@ function isMatch(uin, ref) {
     return output_map;
 }
 
-function highlightCallTree(name) {
-    var filepath;
-    if (name.split(' ').length == 1) {
-        filepath = name.replace('py', 'json').split('/');
-    }
-    else {
-        filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'json').split('/');
-    }
+function highlightCallTreeFunction(fileArr, func) {
+    let fileName = fileArr.join('/');
+    let depEdgeSet = new Set();
+    let processedNodeSet = new Set();
+    let depNodeSet = {};
 
-    let rf = '';
+    depNodeSet[fileName] = 'dependency';
+    processedNodeSet.add(fileName);
+
+    let searchQueue = [];
+    globalThis.nodes[fileName].content['FunctionDef'][func]['calls'].forEach(c => {
+        const cs = c.split('|');
+        globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
+            if (globalThis.nodes.hasOwnProperty(d)) {
+                searchQueue.push([d, cs[1], fileName]);
+            }
+        });
+    });
+    while (searchQueue.length != 0) {
+        let cfa = searchQueue.pop();
+        if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].content['FunctionDef'].hasOwnProperty(cfa[1])) continue
+        depNodeSet[cfa[0]] = 'dependency';
+        depEdgeSet.add([cfa[2], cfa[0]]);
+        globalThis.nodes[cfa[0]].content['FunctionDef'][cfa[1]]['calls'].forEach(c => {
+            const cs = c.split('|');
+            globalThis.nodes[cfa[0]].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
+                if (globalThis.nodes.hasOwnProperty(d)) {
+                    searchQueue.push([d, cs[1], cfa[0]]);
+                }
+            });
+        });
+        processedNodeSet.add(cfa[0]);
+    }
+    highlightSet(depEdgeSet, depNodeSet);
+}
+
+function highlightSet(depEdgeSet, depNodeSet) {
+    let visibleNodeMap = {};
     let viewablePathSet = new Set(globalThis.nodesInView.map(i => i.filepath));
-    for (f in filepath) {
-        rf += filepath[f];
-        if (viewablePathSet.has(rf)) {
-            break;
+    Object.keys(depNodeSet).forEach(n => {
+        let origN = n;
+        while (!viewablePathSet.has(n)) {
+            n = n.substring(0, n.lastIndexOf('/'));
         }
-        rf += '/';
-    }
+        visibleNodeMap[origN] = n;
+    });
 
+    globalThis.currSearchDepSet = {};
+    Object.keys(depNodeSet).forEach(k => {
+        globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': 'red' });
+        globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => e[0] == visibleNodeMap[k] || e[1] == visibleNodeMap[k]);
+    });
+    depEdgeSet.forEach(e => {
+        globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'line-color': 'red' });
+    });
+}
+
+function highlightCallTreeFile(name) {
     let depEdgeSet = new Set();
     let depNodeSet = {};
     let searchQueue = [];
-    searchQueue.push(rf);
+    searchQueue.push(name);
     searchQueue.push('dependency');
-    searchQueue.push(rf);
+    searchQueue.push(name);
     searchQueue.push('dependent');
 
     while (searchQueue.length != 0) {
         let ctype = searchQueue.pop();
         let cn = searchQueue.pop();
+        console.log(cn);
 
         if (depNodeSet.hasOwnProperty(cn) && depNodeSet[cn] == ctype) {
             continue;
@@ -781,8 +831,8 @@ function highlightCallTree(name) {
         let node = globalThis.nodes.hasOwnProperty(cn) ? globalThis.nodes[cn] : globalThis.folders[cn];
 
         if (ctype == 'dependency') {
-            node.dependencies.forEach(c => {
-                if (viewablePathSet.has(c) && c != cn) {
+            node.originalDependencies.forEach(c => {
+                if (c != cn) {
                     depEdgeSet.add([cn, c]);
 
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
@@ -793,8 +843,8 @@ function highlightCallTree(name) {
             });
         }
         else {
-            node.dependents.forEach(c => {
-                if (viewablePathSet.has(c) && c != cn) {
+            node.originalDependents.forEach(c => {
+                if (c != cn) {
                     depEdgeSet.add([c, cn]);
 
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
@@ -806,14 +856,19 @@ function highlightCallTree(name) {
         }
     }
 
-    globalThis.currSearchDepSet = {};
-    Object.keys(depNodeSet).forEach(k => {
-        globalThis.cy.nodes(`node[id="${k}"]`).style({ 'background-color': 'red' });
-        globalThis.currSearchDepSet[k] = Array.from(depEdgeSet).filter(e => e[0] == k || e[1] == k);
-    });
-    depEdgeSet.forEach(e => {
-        globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
-    });
+    highlightSet(depEdgeSet, depNodeSet);
+}
+
+function highlightCallTree(name) {
+    var filepath;
+    if (name.split(' ').length == 1) {
+        filepath = name.replace('.py', '.json');
+        highlightCallTreeFile(filepath);
+    }
+    else {
+        filepath = name.split(' ')[1].replace('(', '').replace(')', '').replace('py', 'json').split('/');
+        highlightCallTreeFunction(filepath, name.split(' ')[0]);
+    }
 }
 
 function closeExplanation() {
@@ -1154,6 +1209,9 @@ function goToView() {
                 computeDependencies(globalThis.nodes[k], globalThis.nodes);
             }
             computeFolderDependencies(root_node);
+            for (const k in globalThis.nodes) {
+                globalThis.nodes[k].originalDependents = globalThis.nodes[k].dependents;
+            }
             for (const k in globalThis.nodes) {
                 globalThis.nodes[k].dependents = augmentDependencySet(globalThis.nodes[k].dependents);
             }

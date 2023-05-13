@@ -291,8 +291,12 @@ def parse_file(filepath):
 
     # Naively process some of the function calls for the simplest cases
     # Unknowns are more complex, to be handled later
+    ftd = []
+    fta = []
     for f in function_call:
         func_arr = f.split('.')
+        if filepath == './raw/feature_selection/_sequential.py':
+            print(func_arr[-1])
         if func_arr[-1] in function_def: # Function name defined locally
             function_call[f]['defined'] = ['local']
             function_call[f]['alias'] = func_arr[-1]
@@ -302,15 +306,30 @@ def parse_file(filepath):
         elif check_imports(f) != None: # Imported module
             function_call[f]['defined'], function_call[f]['alias'] = check_imports(f)
         elif func_arr[-1] in GLOBAL_BUILTINS or func_arr[-1] in MODULE_BUILTINS: # Builtin
+            fta.append((f, func_arr[-1]))
             function_call[f]['defined'] = ['builtin']
             function_call[f]['alias'] = func_arr[-1]
+            ftd.append(f)
         elif check_builtins(func_arr[-1]): # Builtin type
-            function_call[f]['defined'] = [check_builtins(func_arr[-1]).__name__]
+            fta.append((f, func_arr[-1]))
             function_call[f]['alias'] = func_arr[-1]
+            function_call[f]['defined'] = [check_builtins(func_arr[-1]).__name__]
+            ftd.append(f)
         else:
             function_call[f]['defined'] = []
             function_call[f]['alias'] = f
             function_call[f]['full_call'] = f
+    for f, fa in fta:
+        if fa in function_call:
+            if 'defined' not in function_call[fa]:
+                function_call[fa]['defined'] = function_call[f]['defined']
+            else:
+                function_call[fa]['defined'] += function_call[f]['defined']
+            function_call[fa]['line_num'] += function_call[f]['line_num']
+        else:
+            function_call[fa] = function_call[f]
+    for f in ftd:
+        del function_call[f]
 
     # This is an init file, so we need to save what is in the module namespace
     module_defs = []
