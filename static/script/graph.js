@@ -870,7 +870,6 @@ function scrollToFunction(fname, preference) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
             }
             else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname))  {
-                console.log('here');
                 ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
             }
             else {
@@ -890,7 +889,6 @@ function scrollToFunction(fname, preference) {
             }
 
         }
-        console.log(ln);
         document.getElementById(`line-${ln}`).scrollIntoView();
     }
 }
@@ -946,7 +944,7 @@ function loadCode(tid, postExecutionCallback) {
             os = os.split('<br>').map((l, i) => {
                 if (globalThis.nodes[tid].lineno_map.hasOwnProperty(i + 1)) {
                     globalThis.nodes[tid].lineno_map[i + 1].forEach(c => {
-                        l = l.replaceAll(c[1], `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>`)
+                        l = l.replaceAll(c[1]+'(', `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>(`)
                     });
                 }
                 return l;
@@ -1207,7 +1205,7 @@ function goToView() {
                             'line-color': '#ccc',
                             'target-arrow-color': '#ccc',
                             'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier'
+                            'curve-style': 'bezier',
                         }
                     }
 
