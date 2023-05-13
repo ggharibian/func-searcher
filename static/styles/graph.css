@@ -162,6 +162,8 @@ button:hover {
   flex-direction: column;
   padding-bottom: 4px;
   padding-top: 4px;
+  max-height: 20vh;
+  overflow-y: auto;
 }
 
 .sim-functions {

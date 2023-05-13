@@ -775,7 +775,7 @@ function highlightCallTreeFunction(fileArr, func) {
         let cfa = searchQueue.pop();
         if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].content['FunctionDef'].hasOwnProperty(cfa[1])) continue
         depNodeSet[cfa[0]] = 'dependency';
-        depEdgeSet.add([cfa[2], cfa[0]]);
+        depEdgeSet.add([cfa[2], cfa[0], 'red']);
         globalThis.nodes[cfa[0]].content['FunctionDef'][cfa[1]]['calls'].forEach(c => {
             const cs = c.split('|');
             globalThis.nodes[cfa[0]].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
@@ -786,6 +786,11 @@ function highlightCallTreeFunction(fileArr, func) {
         });
         processedNodeSet.add(cfa[0]);
     }
+
+    globalThis.nodes[fileName].content['FunctionDef'][func]['other-calls'].forEach(c => {
+
+    });
+
     highlightSet(depEdgeSet, depNodeSet);
 }
 
@@ -802,11 +807,11 @@ function highlightSet(depEdgeSet, depNodeSet) {
 
     globalThis.currSearchDepSet = {};
     Object.keys(depNodeSet).forEach(k => {
-        globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': 'red' });
+        globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k] == 'dependency' ? 'red' : 'blue'}` });
         globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => e[0] == visibleNodeMap[k] || e[1] == visibleNodeMap[k]);
     });
     depEdgeSet.forEach(e => {
-        globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'line-color': 'red' });
+        globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'line-color': `${e[2]}` });
     });
 }
 
@@ -822,7 +827,6 @@ function highlightCallTreeFile(name) {
     while (searchQueue.length != 0) {
         let ctype = searchQueue.pop();
         let cn = searchQueue.pop();
-        console.log(cn);
 
         if (depNodeSet.hasOwnProperty(cn) && depNodeSet[cn] == ctype) {
             continue;
@@ -833,7 +837,7 @@ function highlightCallTreeFile(name) {
         if (ctype == 'dependency') {
             node.originalDependencies.forEach(c => {
                 if (c != cn) {
-                    depEdgeSet.add([cn, c]);
+                    depEdgeSet.add([cn, c, 'red']);
 
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
@@ -845,7 +849,7 @@ function highlightCallTreeFile(name) {
         else {
             node.originalDependents.forEach(c => {
                 if (c != cn) {
-                    depEdgeSet.add([c, cn]);
+                    depEdgeSet.add([c, cn, 'blue']);
 
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
