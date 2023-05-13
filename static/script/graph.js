@@ -427,7 +427,7 @@ function safeGoToFunction(file, func, preference) {
 
 function getDefined(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Def')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Def')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else {
         return `<span>Right here👍 </span>`;
@@ -436,13 +436,13 @@ function getDefined(file, f, ft) {
 
 function getOtherCalls(file, f, ft) {
     if (ft == FunctionType.Call) {
-        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else if (ft == FunctionType.Definition) {
-        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else {
-        return globalThis.nodes[file].content.ClassDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m}</div>`).join('');
+        return globalThis.nodes[file].content.ClassDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
 }
 
@@ -475,7 +475,7 @@ function onFunctionClick(id, file, ft, f) {
                 </div>
                 <div class='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}', 'Def')" style="cursor: pointer;">${m[0].split('|')[0]}: ${m[0].split('|')[1]}</div>`).join('')}
+                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}', 'Def')" style="cursor: pointer;">${m[0].split('|')[0].replace('.json', '.py')}: ${m[0].split('|')[1]}</div>`).join('')}
                 </div>
             `;
             popup.classList.add('popup');
