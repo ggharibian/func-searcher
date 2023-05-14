@@ -612,7 +612,7 @@ function updateView() {
             else {
                 event.target.connectedEdges().style({ 'line-color': '#ccc' });
                 globalThis.currSearchDepSet[event.target.data('id')].forEach(e => {
-                    globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': 'red' });
+                    globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': `${e[2]}` });
                 });
             }
         }
@@ -829,7 +829,8 @@ function highlightSet(depEdgeSet, depNodeSet) {
     globalThis.currSearchDepSet = {};
     Object.keys(depNodeSet).forEach(k => {
         globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k] == 'dependency' ? 'red' : 'blue'}` });
-        globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => e[0] == visibleNodeMap[k] || e[1] == visibleNodeMap[k]);
+        globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => visibleNodeMap[e[0]] == visibleNodeMap[k] || visibleNodeMap[e[1]] == visibleNodeMap[k])
+                                                              .map(e => [visibleNodeMap[e[0]], visibleNodeMap[e[1]], e[2]]);
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'line-color': `${e[2]}` });
@@ -1053,7 +1054,7 @@ function loadCode(tid, postExecutionCallback) {
 // https://www.w3schools.com/howto/howto_js_autocomplete.asp
 function setSearchView() {
     let inp = document.getElementById('func-search');
-    let arr = Object.keys(globalThis.nodes);
+    let arr = Object.keys(globalThis.nodes).map(m => m.replace('.json', '.py'));
     Object.keys(globalThis.functionDefs).forEach(fDef => {
         globalThis.functionDefs[fDef].forEach(file => {
             arr.push(`${fDef} (${file.replace('json', 'py')})`)
@@ -1097,16 +1098,19 @@ function setSearchView() {
                 b.addEventListener("click", function (e) {
                     /*insert the value for the autocomplete text field:*/
                     inp.value = this.getElementsByTagName("input")[0].value;
-                    globalThis.activeName = inp.value;
-                    globalThis.cy.elements().remove();
-                    updateView();
 
-                    if (globalThis.activeName.indexOf(' ') != -1) {
+                    if (inp.value.indexOf(' ') != -1) {
+                        globalThis.activeName = inp.value;
+                        globalThis.cy.elements().remove();
+                        updateView();
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
                         goToFunction(functionName, filename, 'Def');
                     }
                     else {
+                        globalThis.activeName = inp.value.replace('.py', '.json');
+                        globalThis.cy.elements().remove();
+                        updateView();
                         loadCode(globalThis.activeName, undefined);
                     }
 
