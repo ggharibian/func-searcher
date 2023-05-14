@@ -592,7 +592,8 @@ function updateView() {
                 if (activePathSet.has(d) && d != n.filepath) {
                     globalThis.cy.add({
                         group: 'edges',
-                        data: { source: n.filepath, target: d }
+                        data: { source: n.filepath, target: d },
+                        style: {'z-index': 0}
                     });
                 }
             });
@@ -833,7 +834,7 @@ function highlightSet(depEdgeSet, depNodeSet) {
                                                               .map(e => [visibleNodeMap[e[0]], visibleNodeMap[e[1]], e[2]]);
     });
     depEdgeSet.forEach(e => {
-        globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'line-color': `${e[2]}` });
+        globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'z-index': '5', 'line-color': `${e[2]}` });
     });
 }
 
@@ -1336,6 +1337,7 @@ function goToView() {
 
 function onClearSelection() {
     globalThis.cy.elements().remove();
+    globalThis.cy.edges().style({'z-index': '0' });
     globalThis.activeName = undefined;
     updateView();
     globalThis.currSearchDepSet = {};
