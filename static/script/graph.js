@@ -998,12 +998,19 @@ function scrollToFunction(fname, preference) {
     }
 }
 
+function getLineNumbers(ln) {
+    let out = '';
+    for (let i = 0; i < ln; i++) {
+        out += `<span>${i+1}</span>`;
+    }
+    return out;
+}
+
 function loadCode(tid, postExecutionCallback) {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
         if (req.readyState == 4 && req.status == 200) {
             let ln = 1;
-            let text = req.responseText;
             let os = '';
             const processLine = (line, num) => {
                 line = line.replaceAll('&', '&amp;').replaceAll('<', '&lt;')
@@ -1062,12 +1069,17 @@ function loadCode(tid, postExecutionCallback) {
 
             document.getElementById('code-loaded').innerHTML = `
             <h2>${tid}</h2>
-            <pre class="language-python" style="overflow-x: scroll; width: max-content;">
-                <code class="language-python">
-                    ${os}
-                </code>
-            </pre>`;
-
+            <div style="display: flex; flex-direction: row; overflow-x: scroll; width: max-content;" ">
+                <div id="line-numbers" class='line-numbers'>
+                    ${getLineNumbers(ln)}
+                </div>
+                <pre class="language-python" id='code'>
+                    <code class="language-python">
+                        ${os}
+                    </code>
+                </pre>
+            </div>`;
+            document.getElementById('line-numbers').style.top = document.getElementById('code').getBoundingClientRect().top;
             document.getElementById('code-loaded').addEventListener('mouseup', onMouseUpCode);
 
             globalThis.displayedCode = tid;

@@ -285,3 +285,23 @@ button:hover {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.line-numbers {
+  display: flex;
+  flex-direction: column;
+  text-shadow: 0 1px #fff;
+  font-family: Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;
+  font-size: 1em;
+  line-height: 1.5;
+  background: #f5f2f0;
+  margin-top: 0;
+  padding-top: 2.5em;
+  border-right: 1px solid #5A5A5A;
+  padding-left: 4px;
+  padding-right: 4px;
+  text-align: right;
+}
+
+.language-python {
+  margin: 0 !important;
+}
