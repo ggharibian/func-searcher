@@ -3,16 +3,15 @@ import openai
 
 openai.api_key = environ["OPENAI_APIKEY"]
 
-def get_response(func: str, module=None):
+def get_response(chunk: str):
 
     # EXTRA STRINGS: "Utilize the following format for response: [next_player, response_string]. The value of 'next_player' is the player that you are talking to, and 'response_string' is your response."
-    func_plus_module = f'{func} in the module {module}' if module is not None else func
     
     message_log = [
         {"role": "system", "content": f"You are a responder assistant. Given a question, you will only reply with the answer to the question, and no other information."}
     ]
 
-    message_log.append({"role": "user", "content": f"Describe what the python function '{func_plus_module}' does. Give a description of inputs, outputs, and use cases for the function."})
+    message_log.append({"role": "user", "content": f"Describe what the following code segment does: '{chunk}'"})
 
     # Add a message from the chatbot to the conversation history
     message_log.append(
@@ -39,4 +38,5 @@ def get_response(func: str, module=None):
     return response.choices[0].message.content
 
 if __name__ == '__main__':
-    print(get_response('read_csv', 'pandas'))
+    # print(get_response('read_csv', 'pandas'))
+    pass

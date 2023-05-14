@@ -842,7 +842,4 @@ def postprocess_index(root):
             of.write(json.dumps(files[f].content))
     print('Postprocessing complete: 👍hci')
 
-    with open('./temp.json', 'w') as of:
-        of.write(json.dumps(function_defs))
-
 #postprocess_index(OUTPUT_FOLDER)

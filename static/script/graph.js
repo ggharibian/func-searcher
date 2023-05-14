@@ -351,7 +351,7 @@ function goToFunction(functionName, filename, preference) {
             lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
             ftype = FunctionType.Definition;
         }
-        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)){
+        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)) {
             lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
             ftype = FunctionType.ClassDef;
         }
@@ -374,7 +374,7 @@ function goToFunction(functionName, filename, preference) {
             lineno = globalThis.nodes[filename].content.FunctionDef[functionName]['lineno'][0];
             ftype = FunctionType.Definition;
         }
-        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)){
+        else if (globalThis.nodes[filename].content.ClassDef.hasOwnProperty(functionName)) {
             lineno = globalThis.nodes[filename].content.ClassDef[functionName]['lineno'];
             ftype = FunctionType.ClassDef;
         }
@@ -428,7 +428,7 @@ function safeGoToFunction(file, func, preference) {
         const mbox = extImportDialog.getBoundingClientRect();
         extImportDialog.style.top = tbox.top;
         extImportDialog.style.left = tbox.left + (tbox.width - mbox.width) / 2;
-        setTimeout(function(){ document.getElementById('external-import-dialog').remove(); }, 3000);
+        setTimeout(function () { document.getElementById('external-import-dialog').remove(); }, 3000);
     }
     else {
         globalThis.cy.nodes().unselect();
@@ -597,7 +597,7 @@ function updateView() {
                     globalThis.cy.add({
                         group: 'edges',
                         data: { source: n.filepath, target: d },
-                        style: {'z-index': 0}
+                        style: { 'z-index': 0 }
                     });
                 }
             });
@@ -858,7 +858,7 @@ function highlightSet(depEdgeSet, depNodeSet) {
     Object.keys(depNodeSet).forEach(k => {
         globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k] == 'dependency' ? 'red' : 'blue'}` });
         globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => visibleNodeMap[e[0]] == visibleNodeMap[k] || visibleNodeMap[e[1]] == visibleNodeMap[k])
-                                                              .map(e => [visibleNodeMap[e[0]], visibleNodeMap[e[1]], e[2]]);
+            .map(e => [visibleNodeMap[e[0]], visibleNodeMap[e[1]], e[2]]);
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'z-index': '5', 'line-color': `${e[2]}` });
@@ -933,20 +933,21 @@ function closeExplanation() {
 function searchFunctionDetail() {
     if (document.getElementById('code-loaded').contains(window.getSelection().anchorNode)) {
         let query = window.getSelection().toString();
+        document.getElementById('code-info-widget').innerHTML = '<button title="Explain Code" onclick="closeExplanation()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></button>';
+        const explanationWindow = document.createElement('div');
+        explanationWindow.id = 'explain-window';
+        explanationWindow.classList.add('explain-window');
+        explanationWindow.style.top = document.getElementById('code-info-widget').getBoundingClientRect().bottom - 3;
+        explanationWindow.innerHTML = `
+                    <h1>Code Explanation</h1>
+                    <div style="padding: 4px" id='explanation-text'>Loading...</div>
+                `;
+
+        document.getElementById('sidebar').appendChild(explanationWindow);
         let req = new XMLHttpRequest();
         req.onreadystatechange = function () {
             if (req.readyState == 4 && req.status == 200) {
-                document.getElementById('code-info-widget').innerHTML = '<button title="Explain Code" onclick="closeExplanation()"><svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></button>';
-                const explanationWindow = document.createElement('div');
-                explanationWindow.id = 'explain-window';
-                explanationWindow.classList.add('explain-window');
-                explanationWindow.style.top = document.getElementById('code-info-widget').getBoundingClientRect().bottom - 3;
-                explanationWindow.innerHTML = `
-                    <h1>Code Explanation</h1>
-                    ${req.responseText.replaceAll(' ', '&nbsp;').replaceAll('\n', '<br>').replaceAll('"', '&quot;')}
-                `;
-
-                document.getElementById('sidebar').appendChild(explanationWindow);
+                document.getElementById('explanation-text').innerHTML = req.responseText.replaceAll('\n', '<br>').replaceAll('"', '&quot;');
             }
         }
 
@@ -959,7 +960,7 @@ function searchFunctionDetail() {
 
 function onMouseUpCode(event) {
     if (document.getElementById('code-info-widget') != null) {
-        document.getElementById('code-info-widget').remove();
+        return;
     }
 
     let codeInfoWidget = document.createElement('div');
@@ -978,7 +979,7 @@ function scrollToFunction(fname, preference) {
             if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
             }
-            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname))  {
+            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
             }
             else {
@@ -986,14 +987,14 @@ function scrollToFunction(fname, preference) {
             }
         }
         else {
-            if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)){
+            if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
             }
             else if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
             }
 
-            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname))  {
+            else if (globalThis.nodes[globalThis.displayedCode].content['ClassDef'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
             }
 
@@ -1005,7 +1006,7 @@ function scrollToFunction(fname, preference) {
 function getLineNumbers(ln) {
     let out = '';
     for (let i = 0; i < ln; i++) {
-        out += `<span>${i+1}</span>`;
+        out += `<span>${i + 1}</span>`;
     }
     return out;
 }
@@ -1061,7 +1062,7 @@ function loadCode(tid, postExecutionCallback) {
                 if (globalThis.nodes[tid].lineno_map.hasOwnProperty(i + 1)) {
                     globalThis.nodes[tid].lineno_map[i + 1].forEach(c => {
                         if (c[0] == FunctionType.Call || c[0] == FunctionType.Definition) {
-                            l = l.replaceAll(c[1]+'(', `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>(`)
+                            l = l.replaceAll(c[1] + '(', `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>(`)
                         }
                         else {
                             l = l.replaceAll(c[1], `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>&nbsp;`)
@@ -1231,10 +1232,10 @@ function getCallMap(node) {
         Object.keys(node.content.FunctionDef).forEach(fd => {
             for (let i = 0; i < node.content.FunctionDef[fd]['lineno'].length; i++) {
                 if (node.content.FunctionDef[fd]['lineno'][i] <= node.content.FunctionCall[c]['line_num'] && node.content.FunctionDef[fd]['line-end'][i] >= node.content.FunctionCall[c]['line_num']) {
-                    if (!callMap.hasOwnProperty(node.content.FunctionCall[c]['defined']+'|'+c)) {
-                        callMap[node.content.FunctionCall[c]['defined']+'|'+c] = [];
+                    if (!callMap.hasOwnProperty(node.content.FunctionCall[c]['defined'] + '|' + c)) {
+                        callMap[node.content.FunctionCall[c]['defined'] + '|' + c] = [];
                     }
-                    callMap[node.content.FunctionCall[c]['defined']+'|'+c].push(fd);
+                    callMap[node.content.FunctionCall[c]['defined'] + '|' + c].push(fd);
                 }
             }
         });
@@ -1389,7 +1390,7 @@ function goToView() {
 
 function onClearSelection() {
     globalThis.cy.elements().remove();
-    globalThis.cy.edges().style({'z-index': '0' });
+    globalThis.cy.edges().style({ 'z-index': '0' });
     globalThis.activeName = undefined;
     updateView();
     globalThis.currSearchDepSet = {};
