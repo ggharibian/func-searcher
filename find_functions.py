@@ -11,6 +11,7 @@ import similarity
 from multiprocessing import Pool
 from collections import Counter
 import time
+from gensim.models import Word2Vec
 
 #FILEPATH = "./test"
 #FILEPATH = "/home/chirag/scikit-learn"
@@ -799,66 +800,24 @@ def postprocess_index(root):
                     # file - do NOT add this to the function_defs map (it will
                     # slow down the frontend too much)
 
+    # Compute similarity metrics based on function names
+    def get_tokens(fname):
+        return fname.split('|')[0].split('_')
 
-    # Compute similiarity metrics
-    fname_mat = np.identity(id)
+    sentences = []
+    for f in id_to_f:
+        sentences.append(get_tokens(f))
 
-    '''
-    id_to_nlist = []
-    for i in range(id):
-        id_to_nlist.append(id_to_f[i].split('|')[1].split('_'))
-    with Pool(8) as p:
-        fname_mat = np.asarray(p.starmap(sim_mapr, [(i, id_to_nlist) for i in range(id)]))
-    fname_mat = fname_mat + fname_mat.transpose() - np.identity(id)
-    '''
-    sim_mat = fname_mat
-    '''
-    adj_mat = np.identity(id)
+    model = Word2Vec(window = 4, min_count = 3, vector_size = 100)
+    model.build_vocab(corpus_iterable=sentences)
+    model.train(corpus_iterable=sentences, total_examples=len(sentences), epochs=15)
 
-    for f in files:
-        for fd in files[f].content['FunctionDef']:
-            for c in set(files[f].content['FunctionDef'][fd]['calls']):
-                g.add_edge(f_to_v[f"{files[f].filepath}|{fd}"], f_to_v[c])
-                adj_mat[f_to_id[f"{files[f].filepath}|{fd}"]][f_to_id[c]] = 1
-
-    pr = pagerank(g)
-    prl = [(f, pr[f_to_v[f]]) for f in f_to_v]
-    prl.sort(key=lambda x: -1*x[1])
-    print('Most important functions: ', [p[0].split('|')[1] for p in prl[0:10]])
-
-
-    simrank.simrank(adj_mat, id)
-    '''
-    #sim = vertex_similarity(g)
-    #siml = [(f, sim[f_to_v[f]]) for f in f_to_v]
-    #print(siml)
-
-    '''
-    for f in files:
-        for fd in files[f].content['FunctionDef']:
-            for c in set(files[f].content['FunctionDef'][fd]['calls']):
-                print(f_to_id[f"{files[f].filepath}/{fd}"], c)
-                g.add_edge(f_to_id[f"{files[f].filepath}/{fd}"], c)
-    '''
-
-    '''
-    G = nx.Graph()
-    G.add_nodes_from(range(id))
-
-    for f in files:
-        for fd in files[f].content['FunctionDef']:
-            for c in set(files[f].content['FunctionDef'][fd]['calls']):
-                G.add_edge(f_to_id[f"{files[f].filepath}/{fd}"], c)
-
-    print('Graph node count: ', G.number_of_nodes())
-    print('Graph edge count: ', G.number_of_edges())
-    print('Graph connected components', len(list(nx.connected_components(G))))
-
-    for f1 in f_to_id.keys():
-        for f2 in f_to_id.keys():
-            if f1 != f2:
-                print(f1, f2, nx.simrank_similarity(G, f_to_id[f1], f_to_id[f2], tolerance=0.01))
-    '''
+    N = len(sentences)
+    vec_length = 100
+    fname_mat = np.zeros((N, vec_length))
+    for i, f in enumerate(id_to_f):
+        f_vec = np.mean(np.asarray([model.wv[t] if t in model.wv else np.zeros(vec_length) for t in get_tokens(f)]), axis=0)
+        fname_mat[i] = f_vec
 
     # Convert back to list (to be JSON serializable)
     for f in files:
@@ -874,7 +833,7 @@ def postprocess_index(root):
         node.content['ClassDef'] = class_defs[f]
         node.content['SymDef'] = symbols[f]
 
-    np.save(os.path.join(out_path, 'sim_mat'), sim_mat)
+    np.save(os.path.join(out_path, 'fname_mat'), fname_mat)
     with open(os.path.join(out_path, 'file_key.txt'), 'w') as of:
         of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))
 

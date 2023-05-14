@@ -486,7 +486,7 @@ function onFunctionClick(id, file, ft, f) {
                 </div>
                 <div class='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m[0].split('|')[0]}', '${m[0].split('|')[1]}', 'Def')" style="cursor: pointer;">${m[0].split('|')[0].replace('.json', '.py')}: ${m[0].split('|')[1]}</div>`).join('')}
+                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')}
                 </div>
             `;
             popup.classList.add('popup');
@@ -496,7 +496,11 @@ function onFunctionClick(id, file, ft, f) {
             updatePopupPosition();
         }
     }
-    req.open('GET', `http://localhost:5000/similar?file=${file}&function=${f}`);
+    let fileString = file;
+    if (ft == FunctionType.Call)
+        fileString = globalThis.nodes[file].content.FunctionCall[f]['defined'].length > 0 ? globalThis.nodes[file].content.FunctionCall[f]['defined'][0] : '';
+
+    req.open('GET', `http://localhost:5000/similar?file=${fileString}&function=${f}`);
     req.send();
 }
 
