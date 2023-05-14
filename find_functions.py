@@ -692,10 +692,29 @@ def postprocess_index(root):
                         if l >= s and l <= e:
                             for d in function_calls[f][fc]['defined']:
                                 function_defs[f][fd]['calls'].add(f"{d}|{function_calls[f][fc]['alias']}")
+        for cd in class_defs[f]:
+            class_defs[f][cd]['calls'] = set()
+        for fc in function_calls[f]:
+            for l in ln:
+                for cd in class_defs[f]:
+                    if l >= class_defs[f][cd]['lineno'] and l <= class_defs[f][cd]['linend']:
+                        for d in function_calls[f][fc]['defined']:
+                            class_defs[f][cd]['calls'].add(f"{d}|{function_calls[f][fc]['alias']}")
 
     for f in files:
         for fd in function_defs[f]:
             function_defs[f][fd]['calls'] = list(function_defs[f][fd]['calls'])
+    for f in files:
+        for fd in class_defs[f]:
+            class_defs[f][fd]['calls'] = list(class_defs[f][fd]['calls'])
+
+    for f in files:
+        fta = []
+        for fc in function_calls[f]:
+            if function_calls[f][fc]['alias'] != fc:
+                fta.append((function_calls[f][fc]['alias'], function_calls[f][fc]))
+        for k, v in fta:
+            function_calls[f][k] = v
 
     def ci(i, d):
         for ii in i:

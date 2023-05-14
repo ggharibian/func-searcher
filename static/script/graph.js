@@ -765,14 +765,27 @@ function highlightCallTreeFunction(fileArr, func) {
     processedNodeSet.add(fileName);
 
     let searchQueue = [];
-    globalThis.nodes[fileName].content['FunctionDef'][func]['calls'].forEach(c => {
-        const cs = c.split('|');
-        globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
-            if (globalThis.nodes.hasOwnProperty(d)) {
-                searchQueue.push([d, cs[1], fileName]);
-            }
+    if (globalThis.nodes[fileName].content['FunctionDef'].hasOwnProperty(func)) {
+        globalThis.nodes[fileName].content['FunctionDef'][func]['calls'].forEach(c => {
+            const cs = c.split('|');
+            globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
+                if (globalThis.nodes.hasOwnProperty(d)) {
+                    searchQueue.push([d, cs[1], fileName]);
+                }
+            });
         });
-    });
+    }
+    else if (globalThis.nodes[fileName].content['ClassDef'].hasOwnProperty(func)) {
+        globalThis.nodes[fileName].content['ClassDef'][func]['calls'].forEach(c => {
+            const cs = c.split('|');
+            globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
+                if (globalThis.nodes.hasOwnProperty(d)) {
+                    searchQueue.push([d, cs[1], fileName]);
+                }
+            });
+        });
+    }
+
     while (searchQueue.length != 0) {
         let cfa = searchQueue.pop();
         if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].content['FunctionDef'].hasOwnProperty(cfa[1])) continue
@@ -789,11 +802,21 @@ function highlightCallTreeFunction(fileArr, func) {
         processedNodeSet.add(cfa[0]);
     }
 
-    globalThis.nodes[fileName].content['FunctionDef'][func]['other-calls'].forEach(c => {
-        if (globalThis.nodes.hasOwnProperty(c)) {
-            searchQueue.push([c, func, fileName]);
-        }
-    });
+    if (globalThis.nodes[fileName].content['FunctionDef'].hasOwnProperty(func)) {
+        globalThis.nodes[fileName].content['FunctionDef'][func]['other-calls'].forEach(c => {
+            if (globalThis.nodes.hasOwnProperty(c)) {
+                searchQueue.push([c, func, fileName]);
+            }
+        });
+    }
+    else if (globalThis.nodes[fileName].content['ClassDef'].hasOwnProperty(func)) {
+        globalThis.nodes[fileName].content['ClassDef'][func]['other-calls'].forEach(c => {
+            if (globalThis.nodes.hasOwnProperty(c)) {
+                searchQueue.push([c, func, fileName]);
+            }
+        });
+    }
+
 
     while (searchQueue.length != 0) {
         let cfa = searchQueue.pop();
@@ -1026,7 +1049,12 @@ function loadCode(tid, postExecutionCallback) {
             os = os.split('<br>').map((l, i) => {
                 if (globalThis.nodes[tid].lineno_map.hasOwnProperty(i + 1)) {
                     globalThis.nodes[tid].lineno_map[i + 1].forEach(c => {
-                        l = l.replaceAll(c[1]+'(', `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>(`)
+                        if (c[0] == FunctionType.Call || c[0] == FunctionType.Definition) {
+                            l = l.replaceAll(c[1]+'(', `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>(`)
+                        }
+                        else {
+                            l = l.replaceAll(c[1], `<span class="function-code" id="line-${i + 1}" onclick="onFunctionClick('line-${i + 1}','${tid}', ${c[0]}, '${c[1]}')">${c[1]}</span>&nbsp;`)
+                        }
                     });
                 }
                 return l;
