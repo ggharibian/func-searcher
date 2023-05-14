@@ -787,6 +787,18 @@ def postprocess_index(root):
                         id_to_f.append(f"${d}|${fc}")
                         id += 1
 
+    for f in files:
+        with open(os.path.join('./raw', f.replace('.json', '.py'))) as fr:
+            line_arr = fr.readlines()
+            for fd in function_defs[f]:
+                for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
+                    print(fd, line_arr[s:e+1])
+                    # TODO: Govind use this
+                    # If needed to write out to a file, write out to a different
+                    # file - do NOT add this to the function_defs map (it will
+                    # slow down the frontend too much)
+
+
     # Compute similiarity metrics
     fname_mat = np.identity(id)
 
