@@ -192,11 +192,12 @@ def parse_file(filepath):
             symbol_deps[t] = d
         # There are also calls, but it makes no sense at all: why would we assign to a call result???
 
-    def get_line_end(n):
+    def get_line_end(n, reductfunc):
         ml = n.lineno
-        for ni in ast.walk(n):
-            if hasattr(ni, 'lineno'):
-                ml = max(ml, ni.lineno)
+        for nb in n.body:
+            for ni in ast.walk(nb):
+                if hasattr(ni, 'lineno'):
+                    ml = reductfunc(ml, ni.lineno)
         return ml
 
     # get list of parameters from function
@@ -221,12 +222,12 @@ def parse_file(filepath):
         if type(n) == ast.FunctionDef:
             if n.name in function_def:
                 function_def[n.name]['lineno'].append(n.lineno)
-                function_def[n.name]['line-end'].append(get_line_end(n))
+                function_def[n.name]['line-end'].append(get_line_end(n, max))
             else:
                 function_def[n.name] = {
                     'calls': [],
                     'lineno': [n.lineno],
-                    'line-end': [get_line_end(n)],
+                    'line-end': [get_line_end(n, max)],
                     'params': get_params(n)
                 }
 
@@ -252,7 +253,7 @@ def parse_file(filepath):
                     calls.append(get_fname(ci))
             class_def[n.name] = {
                 'lineno': n.lineno,
-                'linend': get_line_end(n),
+                'linend': get_line_end(n, max),
                 'bases': bases,
                 'calls': [*set(calls)]
             }
@@ -791,7 +792,7 @@ def postprocess_index(root):
         with open(os.path.join('./raw', f.replace('.json', '.py'))) as fr:
             line_arr = fr.readlines()
             for fd in function_defs[f]:
-                for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
+                for s, e in zip(function_defs[f][fd], function_defs[f][fd]['line-end']):
                     print(fd, line_arr[s:e+1])
                     # TODO: Govind use this
                     # If needed to write out to a file, write out to a different
@@ -881,5 +882,8 @@ def postprocess_index(root):
         with open(os.path.join(out_path, f), 'w') as of:
             of.write(json.dumps(files[f].content))
     print('Postprocessing complete: 👍hci')
+
+    with open('./temp.json', 'w') as of:
+        of.write(json.dumps(function_defs))
 
 #postprocess_index(OUTPUT_FOLDER)
