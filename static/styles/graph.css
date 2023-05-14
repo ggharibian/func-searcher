@@ -267,3 +267,21 @@ button:hover {
   box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
   padding: 4px;
 }
+
+
+.spinner {
+  position: absolute;
+  border: 16px solid #ccc;
+  border-top: 16px solid #03254E;
+  color: red;
+  font-size: 48px;
+  border-radius: 50%;
+  width: 180px;
+  height: 180px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

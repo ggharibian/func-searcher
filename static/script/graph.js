@@ -1228,6 +1228,11 @@ function getCallMap(node) {
 }
 
 function goToView() {
+    let spin = document.getElementById('spinner');
+    let sbbox = spin.getBoundingClientRect();
+    spin.style.top = window.innerHeight / 2 - sbbox.height / 2;
+    spin.style.left = window.innerWidth * 0.65 / 2 - sbbox.width / 2;
+
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
         if (req.readyState == 4 && req.status == 200) {
@@ -1357,6 +1362,9 @@ function goToView() {
 
             updateGraphViewOnZoom(undefined);
             globalThis.cy.center();
+
+            document.getElementById('cy').style.visibility = 'visible';
+            document.getElementById('spinner').remove();
         }
     }
     req.open('GET', 'http://localhost:5000/files');
