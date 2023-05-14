@@ -731,16 +731,16 @@ def postprocess_index(root):
     for f in files:
         for fc in function_calls[f]:
             for d in function_calls[f][fc]['defined']:
-                if f"${d}|{fc}" not in other_calls:
-                    other_calls[f"${d}|{fc}"] = set()
-                other_calls[f"${d}|{fc}"].add(f)
+                if f"{d}|{fc}" not in other_calls:
+                    other_calls[f"{d}|{fc}"] = set()
+                other_calls[f"{d}|{fc}"].add(f)
     for c in other_calls:
         other_calls[c] = list(other_calls[c])
     for f in files:
         for fc in function_calls[f]:
             function_calls[f][fc]['other-calls'] = set()
             for d in function_calls[f][fc]['defined']:
-                for o in other_calls[f"${d}|{fc}"]:
+                for o in other_calls[f"{d}|{fc}"]:
                     function_calls[f][fc]['other-calls'].add(o)
             if f in function_calls[f][fc]['other-calls']:
                 function_calls[f][fc]['other-calls'].remove(f)
@@ -748,11 +748,11 @@ def postprocess_index(root):
             #if len(function_calls[f][fc]['other-calls']) > 5:
             #    function_calls[f][fc]['other-calls'] = function_calls[f][fc]['other-calls'][0:5]
         for fd in function_defs[f]:
-            function_defs[f][fd]['other-calls'] = other_calls[f"${f}|{fd}"] if f"${f}|{fd}" in other_calls else []
+            function_defs[f][fd]['other-calls'] = other_calls[f"{f}|{fd}"] if f"{f}|{fd}" in other_calls else []
             #if len(function_defs[f][fd]['other-calls']) > 5:
             #    function_defs[f][fd]['other-calls'] = function_defs[f][fd]['other-calls'][0:5]
         for cd in class_defs[f]:
-            class_defs[f][cd]['other-calls'] = other_calls[f"${f}|{cd}"] if f"${f}|{cd}" in other_calls else []
+            class_defs[f][cd]['other-calls'] = other_calls[f"{f}|{cd}"] if f"{f}|{cd}" in other_calls else []
             #if len(class_defs[f][cd]['other-calls']) > 5:
             #    class_defs[f][cd]['other-calls'] = class_defs[f][cd]['other-calls'][0:5]
 
@@ -778,21 +778,21 @@ def postprocess_index(root):
                     id += 1
         for fc in function_calls[f]:
             if not function_calls[f][fc]['defined']:
-                f_to_id[f"${files[f].filepath}|${fc}"] = id
-                id_to_f.append(f"${files[f].filepath}|${fc}")
+                f_to_id[f"{files[f].filepath}|{fc}"] = id
+                id_to_f.append(f"{files[f].filepath}|{fc}")
                 id += 1
             else:
                 for d in function_calls[f][fc]['defined']:
-                    if f"${d}|${fc}" not in f_to_id:
-                        f_to_id[f"${d}|${fc}"] = id
-                        id_to_f.append(f"${d}|${fc}")
+                    if f"{d}|{fc}" not in f_to_id:
+                        f_to_id[f"{d}|{fc}"] = id
+                        id_to_f.append(f"{d}|{fc}")
                         id += 1
 
     for f in files:
         with open(os.path.join('./raw', f.replace('.json', '.py'))) as fr:
             line_arr = fr.readlines()
             for fd in function_defs[f]:
-                for s, e in zip(function_defs[f][fd], function_defs[f][fd]['line-end']):
+                for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
                     print(fd, line_arr[s:e+1])
                     # TODO: Govind use this
                     # If needed to write out to a file, write out to a different
