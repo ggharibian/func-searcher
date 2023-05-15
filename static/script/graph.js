@@ -1375,9 +1375,10 @@ function goToView() {
             globalThis.cy.maxZoom(8.5);
             globalThis.cy.on('zoom', updateGraphViewOnZoom);
             globalThis.nodesInView = [root_node];
-            updateSlider();
 
             updateGraphViewOnZoom(undefined);
+            globalThis.cy.zoom(0.2);
+            updateSlider();
             globalThis.cy.center();
 
             document.getElementById('cy').style.visibility = 'visible';
