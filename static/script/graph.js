@@ -605,7 +605,8 @@ function updateView() {
     });
 
     let onMouseOver = event => {
-        event.target.connectedEdges().style({ 'line-color': 'red' });
+        event.target.connectedEdges(`edge[source = "${event.target.data('id')}"]`).style({ 'line-color': 'red' });
+        event.target.connectedEdges(`edge[target = "${event.target.data('id')}"]`).style({ 'line-color': 'blue' });
         createDescBox(event.target);
     };
 
@@ -642,7 +643,8 @@ function updateView() {
             ngs.add(s);
             let n = globalThis.cy.nodes(`node[id="${s}"]`);
             n.select();
-            n.connectedEdges().style({ 'line-color': 'red' });
+            n.connectedEdges(`edge[source = "${n.data('id')}"]`).style({ 'line-color': 'red' });
+            n.connectedEdges(`edge[target = "${n.data('id')}"]`).style({ 'line-color': 'blue' });
         }
     });
     globalThis.currSelection = ngs;
@@ -680,12 +682,13 @@ function updateView() {
     let onSelection = event => {
         let tid = event.target.data('id');
         globalThis.currSelection.add(tid);
-        globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges().style({ 'line-color': 'red' });
+        globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges(`edge[source = "${tid}"]`).style({ 'line-color': 'red' });
+        globalThis.cy.nodes(`node[id="${tid}"]`).connectedEdges(`edge[target = "${tid}"]`).style({ 'line-color': 'blue' });
 
         if (globalThis.nodes.hasOwnProperty(tid) && globalThis.displayedCode != tid) {
             loadCode(tid, undefined);
         }
-        else if (globalThis.folders.hasOwnProperty(tid)) {
+        else if (globalThis.folders.hasOwnProperty(tid) && document.getElementById('code') == null) {
             loadFolder(tid);
         }
     };
@@ -1409,9 +1412,16 @@ function onClearSelection() {
     globalThis.cy.elements().remove();
     globalThis.cy.edges().style({ 'z-index': '0' });
     globalThis.activeName = undefined;
+    globalThis.currSelection = new Set();
+    globalThis.displayedCode = undefined;
     updateView();
     globalThis.currSearchDepSet = {};
     document.getElementById('func-search').value = '';
+    document.getElementById('code-loaded').innerHTML = '';
+    closePopup();
+    if (document.getElementById('code-info-widget') != null) {
+        document.getElementById('code-info-widget').remove();
+    }
 }
 
 document.addEventListener('mouseup', (e) => {
