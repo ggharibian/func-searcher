@@ -1245,12 +1245,14 @@ function getCallMap(node) {
     Object.keys(node.content.FunctionCall).forEach(c => {
         Object.keys(node.content.FunctionDef).forEach(fd => {
             for (let i = 0; i < node.content.FunctionDef[fd]['lineno'].length; i++) {
-                if (node.content.FunctionDef[fd]['lineno'][i] <= node.content.FunctionCall[c]['line_num'] && node.content.FunctionDef[fd]['line-end'][i] >= node.content.FunctionCall[c]['line_num']) {
-                    if (!callMap.hasOwnProperty(node.content.FunctionCall[c]['defined'] + '|' + c)) {
-                        callMap[node.content.FunctionCall[c]['defined'] + '|' + c] = [];
+                node.content.FunctionCall[c]['line_num'].forEach(ln => {
+                    if (node.content.FunctionDef[fd]['lineno'][i] <= ln && node.content.FunctionDef[fd]['line-end'][i] >= ln) {
+                        if (!callMap.hasOwnProperty(node.content.FunctionCall[c]['defined'] + '|' + c)) {
+                            callMap[node.content.FunctionCall[c]['defined'] + '|' + c] = [];
+                        }
+                        callMap[node.content.FunctionCall[c]['defined'] + '|' + c].push(fd);
                     }
-                    callMap[node.content.FunctionCall[c]['defined'] + '|' + c].push(fd);
-                }
+                });
             }
         });
     });
