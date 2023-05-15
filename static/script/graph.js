@@ -825,7 +825,6 @@ function highlightCallTreeFunction(fileArr, func) {
     while (searchQueue.length != 0) {
         let cfa = searchQueue.pop();
         let fqfunc = cfa[2] + '|' + cfa[1];
-
         if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].callMap.hasOwnProperty(fqfunc)) continue
 
         depNodeSet[cfa[0]] = 'dependent';
@@ -857,11 +856,17 @@ function highlightSet(depEdgeSet, depNodeSet) {
     globalThis.currSearchDepSet = {};
     Object.keys(depNodeSet).forEach(k => {
         globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k] == 'dependency' ? 'red' : 'blue'}` });
-        globalThis.currSearchDepSet[visibleNodeMap[k]] = Array.from(depEdgeSet).filter(e => visibleNodeMap[e[0]] == visibleNodeMap[k] || visibleNodeMap[e[1]] == visibleNodeMap[k])
-            .map(e => [visibleNodeMap[e[0]], visibleNodeMap[e[1]], e[2]]);
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'z-index': '5', 'line-color': `${e[2]}` });
+        if (!globalThis.currSearchDepSet.hasOwnProperty(visibleNodeMap[e[0]])) {
+            globalThis.currSearchDepSet[visibleNodeMap[e[0]]] = [];
+        }
+        if (!globalThis.currSearchDepSet.hasOwnProperty(visibleNodeMap[e[1]])) {
+            globalThis.currSearchDepSet[visibleNodeMap[e[1]]] = [];
+        }
+        globalThis.currSearchDepSet[visibleNodeMap[e[0]]].push(e);
+        globalThis.currSearchDepSet[visibleNodeMap[e[1]]].push(e);
     });
 }
 
