@@ -616,8 +616,17 @@ function updateView() {
             }
             else {
                 event.target.connectedEdges().style({ 'line-color': '#ccc' });
+                let viewablePathSet = new Set(globalThis.nodesInView.map(i => i.filepath));
                 globalThis.currSearchDepSet[event.target.data('id')].forEach(e => {
-                    globalThis.cy.edges(`edge[source="${e[0]}"][target="${e[1]}"]`).style({ 'line-color': `${e[2]}` });
+                    let e0 = e[0];
+                    let e1 = e[1];
+                    while (!viewablePathSet.has(e0)) {
+                        e0 = e0.substring(0, e0.lastIndexOf('/'));
+                    }
+                    while (!viewablePathSet.has(e1)) {
+                        e1 = e1.substring(0, e1.lastIndexOf('/'));
+                    }
+                    globalThis.cy.edges(`edge[source="${e0}"][target="${e1}"]`).style({ 'line-color': `${e[2]}` });
                 });
             }
         }
