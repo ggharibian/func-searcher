@@ -1451,3 +1451,9 @@ document.addEventListener('keydown', (e) => {
 
     globalThis.cy.panBy({ 'x': dx, 'y': dy });
 });
+
+function closeName() {
+    if (document.getElementById('local-name') != null) {
+        document.getElementById('local-name').remove();
+    }
+}
