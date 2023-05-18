@@ -1,11 +1,17 @@
 from os import environ
 import openai
 
-openai.api_key = environ["OPENAI_APIKEY"]
+open_api_key_exists = "OPENAI_APIKEY" in environ
+
+if open_api_key_exists:
+    openai.api_key = environ["OPENAI_APIKEY"]
 
 def get_response(chunk: str):
 
     # EXTRA STRINGS: "Utilize the following format for response: [next_player, response_string]. The value of 'next_player' is the player that you are talking to, and 'response_string' is your response."
+    
+    if not open_api_key_exists:
+        return "Please set the OPENAI_APIKEY environment variable to use this chatbot."
     
     message_log = [
         {"role": "system", "content": f"You are a responder assistant. Given a question, you will only reply with the answer to the question, and no other information."}
