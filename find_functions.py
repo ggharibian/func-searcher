@@ -802,7 +802,7 @@ def postprocess_index(root):
 
     # Compute similarity metrics based on function names
     def get_tokens(fname):
-        return fname.split('|')[0].split('_')
+        return fname.split('|')[1].replace('_','.').split('.')
 
     sentences = []
     for f in id_to_f:
