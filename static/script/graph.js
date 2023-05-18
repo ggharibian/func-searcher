@@ -322,7 +322,7 @@ function removeChildRenderRestriction(n) {
 }
 
 function updatePopupPosition() {
-    if (globalThis.popupId != undefined && document.getElementById(globalThis.popupId) != null) {
+    if (globalThis.popupId != undefined && document.getElementById(globalThis.popupId) != null && !globalThis.popupDragged) {
         const bbox1 = document.getElementById('popup').getBoundingClientRect();
         const bbox2 = document.getElementById(globalThis.popupId).getBoundingClientRect();
         if (bbox2.top < 39) {
@@ -493,7 +493,16 @@ function onFunctionClick(id, file, ft, f) {
             document.getElementById('main-content').appendChild(popup);
             document.getElementById('defbox').style.paddingRight = `${Math.max(8, (document.getElementById('defbox').getBoundingClientRect().left - document.getElementById('par-row').getBoundingClientRect().left) / 2)}px`;
             document.getElementById('callbox').style.paddingLeft = `${Math.max(8, (document.getElementById('par-row').getBoundingClientRect().right - document.getElementById('callbox').getBoundingClientRect().right) / 2)}px`;
+            globalThis.popupDragged = false;
             updatePopupPosition();
+            popup.addEventListener('mousedown', e=> {
+                globalThis.startClickLocation = [e.clientX, e.clientY];
+                globalThis.initialLocation = [popup.getBoundingClientRect().top, popup.getBoundingClientRect().left, popup.getBoundingClientRect().width];
+                globalThis.potentialDrag = true;
+            });
+            popup.addEventListener('mouseup', e=> {
+                globalThis.potentialDrag = false;
+            });
         }
     }
     let fileString = file;
@@ -502,6 +511,20 @@ function onFunctionClick(id, file, ft, f) {
 
     req.open('GET', `http://localhost:5000/similar?file=${fileString}&function=${f}`);
     req.send();
+}
+
+function popupMove(e) {
+    if (globalThis.potentialDrag) {
+        console.log(globalThis);
+        if (Math.pow(globalThis.startClickLocation[0] - e.clientX, 2) + Math.pow(globalThis.startClickLocation[1] - e.clientY, 2) > 2500) {
+            globalThis.popupDragged = true;
+        }
+        if (globalThis.popupDragged) {
+            document.getElementById('popup').style.top = globalThis.initialLocation[0] + e.clientY - globalThis.startClickLocation[1];
+            document.getElementById('popup').style.left = globalThis.initialLocation[1] + e.clientX - globalThis.startClickLocation[0];
+            document.getElementById('popup').style.width = globalThis.initialLocation[2];
+        }
+    }
 }
 
 function loadCodeOrFunction(parent, child) {
@@ -1402,6 +1425,9 @@ function goToView() {
 
             document.getElementById('cy').style.visibility = 'visible';
             document.getElementById('spinner').remove();
+
+            window.addEventListener('mousemove', popupMove, true);
+            globalThis.potentialDrag = false;
         }
     }
     req.open('GET', 'http://localhost:5000/files');
