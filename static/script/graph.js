@@ -495,12 +495,12 @@ function onFunctionClick(id, file, ft, f) {
             document.getElementById('callbox').style.paddingLeft = `${Math.max(8, (document.getElementById('par-row').getBoundingClientRect().right - document.getElementById('callbox').getBoundingClientRect().right) / 2)}px`;
             globalThis.popupDragged = false;
             updatePopupPosition();
-            popup.addEventListener('mousedown', e=> {
+            popup.addEventListener('mousedown', e => {
                 globalThis.startClickLocation = [e.clientX, e.clientY];
                 globalThis.initialLocation = [popup.getBoundingClientRect().top, popup.getBoundingClientRect().left, popup.getBoundingClientRect().width];
                 globalThis.potentialDrag = true;
             });
-            popup.addEventListener('mouseup', e=> {
+            popup.addEventListener('mouseup', e => {
                 globalThis.potentialDrag = false;
             });
         }
@@ -555,6 +555,7 @@ function onFolderDoubleClick(fid) {
         data: { type: 'ghost', id: n.filepath + 'SIUUU', label: n.filename, w: n.w - DISPLAY_PADDING / 2, h: n.h - DISPLAY_PADDING / 2, z: 9 },
         position: { x: n.total_offset_x, y: n.total_offset_y },
         grabbable: false,
+        pannable: true,
         style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
     });
     updateView();
@@ -727,14 +728,14 @@ function updateView() {
         globalThis.cy.add(g);
     });
 
-    cy.nodes().unbind("mouseover");
-    cy.nodes().bind("mouseover", onMouseOver);
+    globalThis.cy.nodes().unbind("mouseover");
+    globalThis.cy.nodes().bind("mouseover", onMouseOver);
 
-    cy.nodes().unbind("mouseout");
-    cy.nodes().bind("mouseout", onMouseOut);
+    globalThis.cy.nodes().unbind("mouseout");
+    globalThis.cy.nodes().bind("mouseout", onMouseOut);
 
-    cy.nodes().unbind('tap');
-    cy.nodes().bind('tap', onClick);
+    globalThis.cy.nodes().unbind('tap');
+    globalThis.cy.nodes().bind('tap', onClick);
 
     globalThis.cy.on('select', 'node', onSelection);
     globalThis.cy.on('unselect', 'node', onUnselection);
@@ -750,6 +751,7 @@ function onZoomSliderChange() {
 }
 
 function updateGraphViewOnZoom() {
+    globalThis.zoomScale = globalThis.cy.zoom();
     globalThis.cy.elements().remove();
     updateNodesInView(globalThis.cy.extent().h);
     updateView();
