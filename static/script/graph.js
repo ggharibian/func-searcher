@@ -438,6 +438,9 @@ function safeGoToFunction(file, func, preference) {
 
 function getDefined(file, f, ft) {
     if (ft == FunctionType.Call) {
+        if (globalThis.nodes[file].content.FunctionCall[f]['defined'].length == 0) {
+            return '<div>No definition found</div>'
+        }
         return globalThis.nodes[file].content.FunctionCall[f]['defined'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Def')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else {
@@ -447,12 +450,21 @@ function getDefined(file, f, ft) {
 
 function getOtherCalls(file, f, ft) {
     if (ft == FunctionType.Call) {
+        if (globalThis.nodes[file].content.FunctionCall[f]['other-calls'].length == 0) {
+            return '<div>No other calls found</div>'
+        }
         return globalThis.nodes[file].content.FunctionCall[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else if (ft == FunctionType.Definition) {
+        if (globalThis.nodes[file].content.FunctionDef[f]['other-calls'].length == 0) {
+            return '<div>No definition found</div>'
+        }
         return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else {
+        if (globalThis.nodes[file].content.ClassDef[f]['other-calls'].length == 0) {
+            return '<div>No definition found</div>'
+        }
         return globalThis.nodes[file].content.ClassDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
 }
@@ -486,7 +498,9 @@ function onFunctionClick(id, file, ft, f) {
                 </div>
                 <div class='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')}
+                    ${ JSON.parse(req.responseText).length != 0
+                        ? JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')
+                        : '<div>No similar functions found</div>'}
                 </div>
             `;
             popup.classList.add('popup');
