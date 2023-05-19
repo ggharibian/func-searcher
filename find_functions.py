@@ -296,7 +296,7 @@ def parse_file(filepath):
 
     def check_imports(f):
         for i in imports:
-            if f.find(f"{imports[i]['alias']}.") == 0:
+            if f.find(f"{imports[i]['alias']}.") == 0 or f == imports[i]['alias']:
                 return [i], f
         return None
 
