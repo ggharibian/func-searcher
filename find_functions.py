@@ -11,6 +11,9 @@ import similarity
 from multiprocessing import Pool
 from collections import Counter
 import time
+import functools
+import operator
+import re
 from gensim.models import Word2Vec
 
 #FILEPATH = "./test"
@@ -19,6 +22,8 @@ from gensim.models import Word2Vec
 
 FILEPATH=''
 OUTPUT_FOLDER = ''
+CALL_WEIGHT_FACTOR = 0.2
+
 # Helper method to prettify AST Outputs
 def prettify(ast_tree_str, indent=4):
     ret = []
@@ -746,20 +751,15 @@ def postprocess_index(root):
             if f in function_calls[f][fc]['other-calls']:
                 function_calls[f][fc]['other-calls'].remove(f)
             function_calls[f][fc]['other-calls'] = list(function_calls[f][fc]['other-calls'])
-            #if len(function_calls[f][fc]['other-calls']) > 5:
-            #    function_calls[f][fc]['other-calls'] = function_calls[f][fc]['other-calls'][0:5]
         for fd in function_defs[f]:
             function_defs[f][fd]['other-calls'] = other_calls[f"{f}|{fd}"] if f"{f}|{fd}" in other_calls else []
-            #if len(function_defs[f][fd]['other-calls']) > 5:
-            #    function_defs[f][fd]['other-calls'] = function_defs[f][fd]['other-calls'][0:5]
         for cd in class_defs[f]:
             class_defs[f][cd]['other-calls'] = other_calls[f"{f}|{cd}"] if f"{f}|{cd}" in other_calls else []
-            #if len(class_defs[f][cd]['other-calls']) > 5:
-            #    class_defs[f][cd]['other-calls'] = class_defs[f][cd]['other-calls'][0:5]
 
     # g = Graph()
     # f_to_v = {}
     id_to_f = []
+    id_to_c = []
     f_to_id = {}
     id = 0
     for f in files:
@@ -769,6 +769,7 @@ def postprocess_index(root):
                 # f_to_v[f"{files[f].filepath}|{fd}"] = v
                 f_to_id[f"{files[f].filepath}|{fd}"] = id
                 id_to_f.append(f"{files[f].filepath}|{fd}")
+                id_to_c.append(function_defs[f][fd]['other-calls'])
                 id += 1
             for c in set(function_defs[f][fd]['calls']): # TODO: FIX!!!
                 if c not in f_to_id:
@@ -776,17 +777,20 @@ def postprocess_index(root):
                     # f_to_v[c] = v
                     f_to_id[c] = id
                     id_to_f.append(c)
+                    id_to_c.append(function_calls[f][c.split('|')[1]]['other-calls'])
                     id += 1
         for fc in function_calls[f]:
             if not function_calls[f][fc]['defined']:
                 f_to_id[f"{files[f].filepath}|{fc}"] = id
                 id_to_f.append(f"{files[f].filepath}|{fc}")
+                id_to_c.append(function_calls[f][fc]['other-calls'])
                 id += 1
             else:
                 for d in function_calls[f][fc]['defined']:
                     if f"{d}|{fc}" not in f_to_id:
                         f_to_id[f"{d}|{fc}"] = id
                         id_to_f.append(f"{d}|{fc}")
+                        id_to_c.append(function_calls[f][fc]['other-calls'])
                         id += 1
 
     for f in files:
@@ -819,6 +823,30 @@ def postprocess_index(root):
         f_vec = np.mean(np.asarray([model.wv[t] if t in model.wv else np.zeros(vec_length) for t in get_tokens(f)]), axis=0)
         fname_mat[i] = f_vec
 
+    words = set()
+    for i, f in enumerate(id_to_c):
+        l = functools.reduce(operator.iconcat, [re.split(r"[^a-zA-Z]", fi) for fi in f], [])
+        ns = set(l)
+        words = words.union(ns)
+    words.remove('')
+
+    word_to_id = {}
+    for i, w in enumerate(words):
+        word_to_id[w] = i
+
+    call_mat = np.zeros((N, 100))
+    for i, f in enumerate(id_to_c):
+        l = functools.reduce(operator.iconcat, [re.split(r"[^a-zA-Z]", fi) for fi in f], [])
+        for w in l:
+            if w in model.wv.key_to_index:
+                call_mat[i] += model.wv[w]
+
+        norm = np.sqrt(np.sum(call_mat[i]**2)) * CALL_WEIGHT_FACTOR
+        if norm != 0:
+            call_mat[i] = call_mat[i] / norm
+
+    fname_mat = fname_mat + call_mat
+
     # Convert back to list (to be JSON serializable)
     for f in files:
         for fc in function_calls[f]:
@@ -835,7 +863,7 @@ def postprocess_index(root):
 
     np.save(os.path.join(out_path, 'fname_mat'), fname_mat)
     with open(os.path.join(out_path, 'file_key.txt'), 'w') as of:
-        of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))
+        of.write(json.dumps({"id-to-f": id_to_f, "f-to-id": f_to_id}))#'id-to-calls': id_to_c}))
 
     for f in files:
         with open(os.path.join(out_path, f), 'w') as of:
