@@ -14,6 +14,7 @@ import time
 import functools
 import operator
 import re
+import tokenize
 from gensim.models import Word2Vec
 
 #FILEPATH = "./test"
@@ -222,6 +223,13 @@ def parse_file(filepath):
             out.append(n.kwarg.arg)
         return out
 
+    def get_params_call(n):
+        if type(n) == list:
+            return [ni.id for ni in n if type(ni) == ast.Name]
+        elif type(n) == ast.Name:
+            return n.id
+        elif type(n) == ast.Attribute:
+            return f"{get_params_call(n)}.{n.attr}"
 
     # Iterate over the tree
     for n in tree:
@@ -270,8 +278,10 @@ def parse_file(filepath):
                 if not fname in function_call:
                     function_call[fname] = {}
                     function_call[fname]['line_num'] = [n.lineno]
+                    function_call[fname]['params'] = get_params_call(n.args)
                 else:
                     function_call[fname]['line_num'].append(n.lineno)
+                    function_call[fname]['params'] += get_params_call(n.args)
                 function_call[fname]['chain'] = get_method_chain(n.func)
         elif type(n) == ast.Assign:
             v = get_dependencies(n.value)
@@ -302,8 +312,6 @@ def parse_file(filepath):
     fta = []
     for f in function_call:
         func_arr = f.split('.')
-        if filepath == './raw/feature_selection/_sequential.py':
-            print(func_arr[-1])
         if func_arr[-1] in function_def: # Function name defined locally
             function_call[f]['defined'] = ['local']
             function_call[f]['alias'] = func_arr[-1]
@@ -548,24 +556,93 @@ def postprocess_index(root):
                                                 function_calls[f][fc]['defined'].add(b)
                                         continue
 
+        # Mine comments for parameter definitions
+        comment_list = []
+        evaluated_dependencies = {}
+        with open(os.path.join('./raw', f.replace('.json', '.py')), 'rb') as fr:
+            for tok in tokenize.tokenize(fr.readline):
+                if tok.type == 3:
+                    comment_list.append((tok.start[0], tok.end[0], tok.string))
+
+        ln_fdef = {}
+        function_params = {}
+        for fd in function_defs[f]:
+            for ln in function_defs[f][fd]['lineno']:
+                if ln not in ln_fdef:
+                    ln_fdef[ln] = []
+                ln_fdef[ln].append(fd)
+            function_params[fd] = function_defs[f][fd]['params']
+
+        cfunc_pairs = []
+        for clns, clne, cs in comment_list:
+            if clns-1 in ln_fdef:
+                for fc in ln_fdef[clns-1]:
+                    cfunc_pairs.append((fc, cs))
+            if clne+1 in ln_fdef:
+                for fc in ln_fdef[clne+1]:
+                    cfunc_pairs.append((fc, cs))
+
+        def extract_parameters_from_func_description(func_description):
+            returns_loc = func_description.find('Returns')
+            if returns_loc != -1:
+                func_description = func_description[:returns_loc]
+
+            parameters = {}
+            line_split_description = func_description.split('\n')
+            for line_no, x in enumerate(line_split_description):
+                if ' : ' in x:
+                    cur_index = line_no + 1
+
+                    while cur_index < len(line_split_description) and line_split_description[cur_index].strip() != '' and ':' not in line_split_description[cur_index].strip():
+                        cur_index += 1
+
+                    parameter_name = x.split(':')[0].strip()
+                    parameter_description = ' '.join(line_split_description[line_no:cur_index])
+                    parameter_description = ''.join(parameter_description.split(':')[1:]).strip()
+                    parameter_description = parameter_description.replace('\\', '').replace('\r', '').replace('\t', '').replace(',', '').strip()
+                    parameter_description = ' '.join(parameter_description.split())
+
+                    parameters[parameter_name] = parameter_description
+
+            return parameters
+
+        # TODO: FIX THIS PLACEHOLDER
+        def assess_comment(comment):
+            if 'array-like' in comment or 'ndarray' in comment or 'RandomState' in comment:
+                return 'numpy'
+            else:
+                return 'builtin'
+
+        for _, comment in cfunc_pairs:
+            param_map = extract_parameters_from_func_description(comment)
+            for p in param_map:
+                guess = assess_comment(param_map[p])
+                if p in evaluated_dependencies:
+                    evaluated_dependencies[p].add(guess)
+                else:
+                    evaluated_dependencies[p] = set([guess])
+
         # Search strategy: BFS with memoization
         # Could use topo-sort, but would do a lot of unnecessary work
         # Handles function calls that are attributes of local variables
         # We need to keep track of what has already been evaluated to handle
         # cases where there are circular dependencies
-        evaluated_dependencies = {}
         def evaluate_dependencies(sym, evaluated):
             if sym in evaluated:
-                return set([])
+                return set()
             evaluated.add(sym)
-            if fc in evaluated_dependencies:
-                return evaluated_dependencies[fc]
+            if sym in evaluated_dependencies:
+                return evaluated_dependencies[sym]
 
-            # If a dependency matches an import, it came from there
+            # If a dependency matches an import, it came from there (or a parameter of it)
             for i in import_alias_set:
-                if i == sym[0:len(i)]:
-                    evaluated_dependencies[sym] = set([i])
-                    return set([i])
+                if  i == sym[0:len(i)]:
+                    out = set([i])
+                    if i in function_calls[f]: # Search parameters
+                        for fp in set(function_calls[f][i]['params']):
+                            out = out.union(evaluate_dependencies(fp, evaluated))
+                    evaluated_dependencies[sym] = out
+                    return out
 
             # We do not exist (bad)
             if sym not in symbols[f]:
@@ -798,7 +875,7 @@ def postprocess_index(root):
             line_arr = fr.readlines()
             for fd in function_defs[f]:
                 for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
-                    print(fd, line_arr[s:e+1])
+                    pass
                     # TODO: Govind use this
                     # If needed to write out to a file, write out to a different
                     # file - do NOT add this to the function_defs map (it will
