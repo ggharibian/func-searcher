@@ -929,6 +929,24 @@ def postprocess_index(root):
         for fc in function_calls[f]:
             function_calls[f][fc]['defined'] = list(function_calls[f][fc]['defined'])
 
+    # Filter out obviously wrong definitions
+    for f in files:
+        for fc in function_calls[f]:
+            function_calls[f][fc]['defined'] = [d for d in function_calls[f][fc]['defined'] if d not in files or fc in function_defs[d] or fc in class_defs[d]]
+
+    count_tot = 0
+    count_nf = 0
+    for f in files:
+        for fc in function_calls[f]:
+            count_tot += 1
+            if len(function_calls[f][fc]['defined']) == 0:
+                count_nf  += 1
+
+    print('Total function calls', count_tot)
+    print('Total calls not resolved', count_nf)
+    print('Success rate', (count_tot - count_nf) / count_tot)
+
+
     # Write back to nodes
     for f in files:
         node = files[f]
