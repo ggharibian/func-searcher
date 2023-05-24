@@ -921,8 +921,8 @@ def postprocess_index(root):
         norm = np.sqrt(np.sum(call_mat[i]**2)) * CALL_WEIGHT_FACTOR
         if norm != 0:
             call_mat[i] = call_mat[i] / norm
-
-    fname_mat = fname_mat + call_mat
+    
+    fname_mat = np.concatenate((fname_mat, call_mat), axis=1)
 
     # Convert back to list (to be JSON serializable)
     for f in files:
