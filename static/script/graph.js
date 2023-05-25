@@ -1087,6 +1087,30 @@ function loadCode(tid, postExecutionCallback) {
                     if (typeof t.content == 'string') {
                         currString = t.content;
                     }
+                    else if (t.type == 'string-interpolation') {
+                        currString = '';
+
+                        t.content.forEach(c => {
+                            if (c.type == 'string') {
+                                currString += c.content;
+                            }
+                            else if (c.type == 'interpolation') {
+                                if (typeof c.content == 'string') {
+                                    currString += c.content;
+                                }
+                                else {
+                                    c.content.forEach(nc => {
+                                        if (typeof nc == 'string') {
+                                            currString += nc;
+                                        }
+                                        else {
+                                            currString += nc.content;
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
                     else {
                         currString = t.content.reduce(
                             (a, cv) => a + cv,
