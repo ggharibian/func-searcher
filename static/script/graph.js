@@ -457,13 +457,13 @@ function getOtherCalls(file, f, ft) {
     }
     else if (ft == FunctionType.Definition) {
         if (globalThis.nodes[file].content.FunctionDef[f]['other-calls'].length == 0) {
-            return '<div>No definition found</div>'
+            return '<div>No other calls found</div>'
         }
         return globalThis.nodes[file].content.FunctionDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }
     else {
         if (globalThis.nodes[file].content.ClassDef[f]['other-calls'].length == 0) {
-            return '<div>No definition found</div>'
+            return '<div>No other calls found</div>'
         }
         return globalThis.nodes[file].content.ClassDef[f]['other-calls'].map(m => `<div onclick="safeGoToFunction('${m}', '${f}', 'Call')" style="cursor: pointer;">${m.replace('.json', '.py')}</div>`).join('');
     }

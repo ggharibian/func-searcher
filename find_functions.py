@@ -1,29 +1,37 @@
 from enum import Enum
 import os
 from pickle import GLOBAL
-import shutil
 from enum import Enum
 import json
 import ast
-#from graph_tool.all import *
 import numpy as np
-import similarity
-from multiprocessing import Pool
-from collections import Counter
-import time
 import functools
 import operator
 import re
 import tokenize
 from gensim.models import Word2Vec
-
-#FILEPATH = "./test"
-#FILEPATH = "/home/chirag/scikit-learn"
-#OUTPUT_FOLDER = "./index/"
+from sentence_transformers import SentenceTransformer
+import pygments
+from pygments.formatter import Formatter
+from pygments.lexers import PythonLexer
 
 FILEPATH=''
 OUTPUT_FOLDER = ''
-CALL_WEIGHT_FACTOR = 0.2
+CALL_WEIGHT_FACTOR = 0.05
+BODY_WEIGHT_FACTOR = 0.2
+NAME_WEIGHT_FACTOR = 1 - (CALL_WEIGHT_FACTOR + BODY_WEIGHT_FACTOR)
+
+class NameFormatter(Formatter):
+    def __init__(self):
+        self.names = []
+
+    def format(self, tokensource, outfile):
+        for _type, value in tokensource:
+            if _type[0] == "Name" or _type[0] == "Keyword":
+                self.names.append(value)
+
+    def get_tok_arr(self):
+        return self.names
 
 # Helper method to prettify AST Outputs
 def prettify(ast_tree_str, indent=4):
@@ -898,19 +906,9 @@ def postprocess_index(root):
     fname_mat = np.zeros((N, vec_length))
     for i, f in enumerate(id_to_f):
         f_vec = np.mean(np.asarray([model.wv[t] if t in model.wv else np.zeros(vec_length) for t in get_tokens(f)]), axis=0)
-        fname_mat[i] = f_vec
+        fname_mat[i] = f_vec * NAME_WEIGHT_FACTOR
 
-    words = set()
-    for i, f in enumerate(id_to_c):
-        l = functools.reduce(operator.iconcat, [re.split(r"[^a-zA-Z]", fi) for fi in f], [])
-        ns = set(l)
-        words = words.union(ns)
-    words.remove('')
-
-    word_to_id = {}
-    for i, w in enumerate(words):
-        word_to_id[w] = i
-
+    # Compute similarity metrics based on function calls
     call_mat = np.zeros((N, 100))
     for i, f in enumerate(id_to_c):
         l = functools.reduce(operator.iconcat, [re.split(r"[^a-zA-Z]", fi) for fi in f], [])
@@ -918,11 +916,36 @@ def postprocess_index(root):
             if w in model.wv.key_to_index:
                 call_mat[i] += model.wv[w]
 
-        norm = np.sqrt(np.sum(call_mat[i]**2)) * CALL_WEIGHT_FACTOR
+        norm = np.sqrt(np.sum(call_mat[i]**2))
         if norm != 0:
-            call_mat[i] = call_mat[i] / norm
-    
-    fname_mat = np.concatenate((fname_mat, call_mat), axis=1)
+            call_mat[i] = call_mat[i] / norm** CALL_WEIGHT_FACTOR
+
+    # Compute similarity metrics based on function bodies
+    f_to_tokind = {}
+    sentences = []
+    for f in function_defs:
+        with open(os.path.join('./raw', f.replace('.json', '.py'))) as fr:
+            line_arr = fr.readlines()
+            for fd in function_defs[f]:
+                for s, e in zip(function_defs[f][fd]['lineno'], function_defs[f][fd]['line-end']):
+                    func_body = ''.join(line_arr[s:e+2])
+                    formatter = NameFormatter()
+                    pygments.highlight(func_body, PythonLexer(), formatter)
+                    f_to_tokind[f"{f}|{fd}"] = len(sentences)
+                    sentences.append(formatter.get_tok_arr())
+
+    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    sentences_joined = [' '.join(s) for s in sentences]
+    encoding_mat = model.encode(sentences_joined)
+    body_mat = np.zeros((N, encoding_mat.shape[1]))
+
+    for f in f_to_tokind:
+        row = encoding_mat[f_to_tokind[f]]
+        norm = np.sqrt(np.sum(row**2))
+        body_mat[f_to_id[f]] = row / norm * BODY_WEIGHT_FACTOR
+
+    # Combine similarity metrics
+    fname_mat = np.concatenate((fname_mat, call_mat, body_mat), axis=1)
 
     # Convert back to list (to be JSON serializable)
     for f in files:
