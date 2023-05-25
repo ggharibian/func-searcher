@@ -816,8 +816,8 @@ function highlightCallTreeFunction(fileArr, func) {
     let processedNodeSet = new Set();
     let depNodeSet = {};
 
-    depNodeSet[fileName] = 'dependency';
-    processedNodeSet.add(fileName);
+    // depNodeSet[fileName] = 'dependency';
+    // processedNodeSet.add(fileName);
 
     let searchQueue = [];
     if (globalThis.nodes[fileName].content['FunctionDef'].hasOwnProperty(func)) {
