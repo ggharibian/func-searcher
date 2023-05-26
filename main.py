@@ -113,7 +113,14 @@ def get_files():
 
 @app.route("/similar", methods=["GET"])
 def get_similar_functions():
-    return similarity.get_similarity(OUTPUT_FOLDER_PROCESSED, f"{request.args['file']}|{request.args['function']}")
+    return similarity.get_similarity(f"{request.args['file']}|{request.args['function']}")
+
+@app.route("/weight", methods=["POST"])
+def update_weights():
+    data = json.loads(request.data)
+    similarity.update_weights(int(data['call-weight']), int(data['body-weight']), int(data['name-weight']))
+
+    return ''
 
 @app.route("/explain", methods=["POST"])
 def get_explanation():

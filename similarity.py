@@ -1,7 +1,9 @@
+from subprocess import call
 import numpy as np
 import os
 import json
 from scipy import spatial
+import find_functions
 
 #OUTPUT_FOLDER = ''
 def simrank(adj_mat, N):
@@ -17,12 +19,17 @@ i_to_f = {}
 f_to_id = {}
 N = 0
 
+call_weight = find_functions.CALL_WEIGHT_FACTOR
+body_weight = find_functions.BODY_WEIGHT_FACTOR
+name_weight = find_functions.NAME_WEIGHT_FACTOR
+
 def load_smat():
     global fname_mat
     global i_to_f
     global f_to_id
     global N
     global name_tree
+
     fname_mat = np.load(os.path.join('./index/', "fname_mat.npy"))
     N = fname_mat.shape[0]
     name_tree = spatial.KDTree(fname_mat)
@@ -31,7 +38,27 @@ def load_smat():
         i_to_f = j['id-to-f']
         f_to_id = j['f-to-id']
 
-def get_similarity(OUTPUT_FOLDER, fname):
+def update_weights(cw, bw, nw):
+    global call_weight
+    global body_weight
+    global name_weight
+    global fname_mat
+
+    # Adjust magnitudes
+    tw = cw + bw + nw
+    cw = cw / tw * 100
+    bw = bw / tw * 100
+    nw = nw / tw * 100
+
+    fname_mat[:, 0:100] *= nw / name_weight
+    fname_mat[:, 100:200] *= cw / call_weight
+    fname_mat[:, 200:] *= bw / body_weight
+
+    call_weight = cw
+    body_weight = bw
+    name_weight = nw
+
+def get_similarity(fname):
     global fname_mat
     global i_to_f
     global f_to_id

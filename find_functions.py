@@ -620,7 +620,7 @@ def postprocess_index(root):
             return parameters
 
         # TODO: FIX THIS PLACEHOLDER
-        
+
         def convert_to_input_format(parameter, comment, options, labels):
             return (' '.join([parameter, comment, options]), labels)
 
@@ -632,11 +632,11 @@ def postprocess_index(root):
                     dvsl = convert_to_input_format(line[0], line[1], line[2], line[3])
                     if dvsl[-1] != '' and ' ' not in dvsl[-1]:
                         np_array.append(dvsl)
-            
+
             np_array = np.array(np_array)
 
             return np_array[:,0], np_array[:,1]
-                            
+
         def convert_labels_to_discrete(labels: np.ndarray):
             le = LabelEncoder()
             return le.fit_transform(labels), le
@@ -649,14 +649,14 @@ def postprocess_index(root):
 
         def get_dense_vect_for_single_str(item, count_vec):
             return count_vec.transform([item]).toarray()
-        
+
         data, labels = extract_csv_to_numpy_array(COMMENT_DATA_LOCATION)
         bow, count_vec = get_bow_model(data)
         labels, le = convert_labels_to_discrete(labels)
-        
+
         gnb = GaussianNB()
         gnb.fit(bow, labels)
-        
+
         def assess_comment(name, comment, model, le, count_vec):
             item = ' '.join([name, comment])
             return le.inverse_transform(model.predict(get_dense_vect_for_single_str(item, count_vec)))[0]
@@ -665,7 +665,6 @@ def postprocess_index(root):
             param_map = extract_parameters_from_func_description(comment)
             for p in param_map:
                 guess = assess_comment(p, param_map[p], gnb, le, count_vec)
-                print('guess: ', guess)
                 if p in evaluated_dependencies:
                     evaluated_dependencies[p].add(guess)
                 else:
@@ -684,7 +683,7 @@ def postprocess_index(root):
                 return evaluated_dependencies[sym]
 
             # If a dependency matches an import, it came from there (or a parameter of it)
-            for i in import_alias_set: 
+            for i in import_alias_set:
                 if  i == sym[0:len(i)]:
                     out = set([i])
                     if i in function_calls[f]: # Search parameters

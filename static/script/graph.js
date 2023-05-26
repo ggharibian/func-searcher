@@ -39,6 +39,9 @@ const SIZE_SCALE_FACTOR = 20;
 const DISPLAY_PADDING = 40;
 const WIDTH = 1000;
 const HEIGHT = 800;
+const INITIAL_CALL_WEIGHT = 5;
+const INITIAL_BODY_WEIGHT = 20;
+const INITIAL_NAME_WEIGHT = 75;
 
 // https://observablehq.com/@mourner/simple-rectangle-packing
 function packRectangles(boxes) {
@@ -335,10 +338,17 @@ function updatePopupPosition() {
             document.getElementById('popup').style.top = `${bbox2.top}px`;
         }
     }
+
+    updateSimilaritySettingsLocation();
 }
 
 function closePopup() {
-    document.getElementById('popup').remove();
+    if (document.getElementById('popup') != null) {
+        document.getElementById('popup').remove();
+    }
+    if (document.getElementById('similarity-settings') != null) {
+        document.getElementById('similarity-settings').remove();
+    }
     globalThis.popupId = undefined;
 }
 
@@ -469,6 +479,93 @@ function getOtherCalls(file, f, ft) {
     }
 }
 
+function adjustWeights() {
+    globalThis.nameWeight = document.getElementById('name-weight-slider').value;
+    globalThis.callWeight = document.getElementById('call-weight-slider').value;
+    globalThis.bodyWeight = document.getElementById('body-weight-slider').value;
+
+    let req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+        if (req.readyState == 4 && req.status == 200) {
+            let req2 = new XMLHttpRequest();
+
+            req2.onreadystatechange = function () {
+                if (req2.readyState == 4 && req2.status == 200) {
+                    document.getElementById('sim-functions').innerHTML = `<h2>Similar Functions</h2>
+                    ${JSON.parse(req2.responseText).length != 0
+                            ? JSON.parse(req2.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')
+                            : '<div>No similar functions found</div>'}`;
+                }
+            }
+
+            req2.open('GET', globalThis.similarString);
+            req2.send();
+        }
+    }
+
+    req.open('POST', `http://localhost:5000/weight`);
+    req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    const data = JSON.stringify({ "name-weight": globalThis.nameWeight, "call-weight": globalThis.callWeight, "body-weight": globalThis.bodyWeight });
+    req.send(data);
+}
+
+function updateSimilaritySettingsLocation() {
+    if (document.getElementById('similarity-settings') == null) return;
+
+    let simBbox = document.getElementById('similarity-settings').getBoundingClientRect();
+    let popupBbox = document.getElementById('popup').getBoundingClientRect();
+
+    if (popupBbox.left > simBbox.width) {
+        document.getElementById('similarity-settings').style.top = `${popupBbox.top}px`;
+        document.getElementById('similarity-settings').style.left = `${popupBbox.left - simBbox.width + 3}px`;
+    }
+    else if (popupBbox.top > simBbox.height) {
+        document.getElementById('similarity-settings').style.top = `${popupBbox.top - simBbox.height + 3}px`;
+        document.getElementById('similarity-settings').style.left = `${popupBbox.left + popupBbox.width - simBbox.width}px`;
+    }
+    else if (popupBbox.bottom > simBbox.height) {
+        document.getElementById('similarity-settings').style.top = `${popupBbox.top  + popupBbox.height - 3}px`;
+        document.getElementById('similarity-settings').style.left = `${popupBbox.left + popupBbox.width - simBbox.width}px`;
+    }
+    else {
+        document.getElementById('similarity-settings').style.left = `auto`;
+        document.getElementById('similarity-settings').style.top = `auto`;
+    }
+}
+
+function onSimilaritySettingsClick() {
+    const settings = document.createElement('div');
+    settings.id = 'similarity-settings';
+    settings.classList.add('similarity-settings-popup');
+    settings.innerHTML = `
+        <h1>Similarity Weights</h1>
+        <button onclick="document.getElementById('similarity-settings').remove()">
+        <svg xmlns="http://www.w3.org/2000/svg" height="30" viewBox="0 96 960 960" width="30"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+        </button>
+        <div class="flex-row-slider">Function name:
+            <input title="Functions with similar names are more similar"
+             id="name-weight-slider" type="range" min="${Math.floor(INITIAL_NAME_WEIGHT / 2)}"
+             max="${Math.ceil(3 * INITIAL_NAME_WEIGHT / 2)}" value="${globalThis.nameWeight}"
+             class="slider" onchange="adjustWeights()" style="margin-left: 10px">
+        </div>
+        <div class="flex-row-slider">Function calls:
+            <input title="Functions called by similar functions are more similar"
+             id="call-weight-slider" type="range" min="${Math.floor(INITIAL_CALL_WEIGHT / 2)}"
+             max="${Math.ceil(3 * INITIAL_CALL_WEIGHT / 2)}" value="${globalThis.callWeight}"
+             class="slider" onchange="adjustWeights()" style="margin-left: 10px">
+        </div>
+        <div class="flex-row-slider">Function body:
+            <input title="Functions with semantically similar bodies are more similar"
+             id="body-weight-slider" type="range" min="${Math.floor(INITIAL_BODY_WEIGHT / 2)}"
+             max="${Math.ceil(3 * INITIAL_BODY_WEIGHT / 2)}" value="${globalThis.bodyWeight}"
+             class="slider" onchange="adjustWeights()" style="margin-left: 10px">
+        </div>
+    `;
+
+    document.getElementById('main-content').append(settings);
+    updateSimilaritySettingsLocation();
+}
+
 function onFunctionClick(id, file, ft, f) {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -482,9 +579,12 @@ function onFunctionClick(id, file, ft, f) {
             popup.id = 'popup'
             globalThis.popupId = id;
             popup.innerHTML = `
-                <h1>${f}</h1>
-                <button onclick="closePopup()">
+                <h1 id='popup-header'>${f}</h1>
+                <button id='close-button' onclick="closePopup()" class="close-button">
                 <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+                </button>
+                <button id='set-button' title="Adjust similarity weights" class="settings-button" onclick="onSimilaritySettingsClick()">
+                <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 -960 960 960" width="36"><path d="m388-80-20-126q-19-7-40-19t-37-25l-118 54-93-164 108-79q-2-9-2.5-20.5T185-480q0-9 .5-20.5T188-521L80-600l93-164 118 54q16-13 37-25t40-18l20-127h184l20 126q19 7 40.5 18.5T669-710l118-54 93 164-108 77q2 10 2.5 21.5t.5 21.5q0 10-.5 21t-2.5 21l108 78-93 164-118-54q-16 13-36.5 25.5T592-206L572-80H388Zm92-270q54 0 92-38t38-92q0-54-38-92t-92-38q-54 0-92 38t-38 92q0 54 38 92t92 38Zm0-60q-29 0-49.5-20.5T410-480q0-29 20.5-49.5T480-550q29 0 49.5 20.5T550-480q0 29-20.5 49.5T480-410Zm0-70Zm-44 340h88l14-112q33-8 62.5-25t53.5-41l106 46 40-72-94-69q4-17 6.5-33.5T715-480q0-17-2-33.5t-7-33.5l94-69-40-72-106 46q-23-26-52-43.5T538-708l-14-112h-88l-14 112q-34 7-63.5 24T306-642l-106-46-40 72 94 69q-4 17-6.5 33.5T245-480q0 17 2.5 33.5T254-413l-94 69 40 72 106-46q24 24 53.5 41t62.5 25l14 112Z"/></svg>
                 </button>
                 <div class='popup-toprow' id='par-row'>
                     <div class='popup-toprow-elem' id='defbox' style="border-right: 1px #03254E solid;">
@@ -496,17 +596,20 @@ function onFunctionClick(id, file, ft, f) {
                         ${getOtherCalls(file, f, ft)}
                     </div>
                 </div>
-                <div class='sim-functions'>
+                <div class='sim-functions' id='sim-functions'>
                     <h2>Similar Functions</h2>
-                    ${ JSON.parse(req.responseText).length != 0
-                        ? JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')
-                        : '<div>No similar functions found</div>'}
+                    ${JSON.parse(req.responseText).length != 0
+                    ? JSON.parse(req.responseText).map(m => `<div onclick="safeGoToFunction('${m.split('|')[0]}', '${m.split('|')[1]}', 'Def')" style="cursor: pointer;">${m.split('|')[0].replace('.json', '.py')}: ${m.split('|')[1]}</div>`).join('')
+                    : '<div>No similar functions found</div>'}
                 </div>
             `;
             popup.classList.add('popup');
             document.getElementById('main-content').appendChild(popup);
             document.getElementById('defbox').style.paddingRight = `${Math.max(8, (document.getElementById('defbox').getBoundingClientRect().left - document.getElementById('par-row').getBoundingClientRect().left) / 2)}px`;
             document.getElementById('callbox').style.paddingLeft = `${Math.max(8, (document.getElementById('par-row').getBoundingClientRect().right - document.getElementById('callbox').getBoundingClientRect().right) / 2)}px`;
+            if (document.getElementById('popup').getBoundingClientRect().width <= document.getElementById('popup-header').getBoundingClientRect().width + document.getElementById('close-button').getBoundingClientRect().width + document.getElementById('set-button').getBoundingClientRect().width + 12) {
+                document.getElementById('popup').style.width = `${12 + document.getElementById('popup-header').getBoundingClientRect().width + document.getElementById('close-button').getBoundingClientRect().width + document.getElementById('set-button').getBoundingClientRect().width}px`;
+            }
             globalThis.popupDragged = false;
             updatePopupPosition();
             popup.addEventListener('mousedown', e => {
@@ -523,13 +626,13 @@ function onFunctionClick(id, file, ft, f) {
     if (ft == FunctionType.Call)
         fileString = globalThis.nodes[file].content.FunctionCall[f]['defined'].length > 0 ? globalThis.nodes[file].content.FunctionCall[f]['defined'][0] : '';
 
+    globalThis.similarString = `http://localhost:5000/similar?file=${fileString}&function=${f}`;
     req.open('GET', `http://localhost:5000/similar?file=${fileString}&function=${f}`);
     req.send();
 }
 
 function popupMove(e) {
     if (globalThis.potentialDrag) {
-        console.log(globalThis);
         if (Math.pow(globalThis.startClickLocation[0] - e.clientX, 2) + Math.pow(globalThis.startClickLocation[1] - e.clientY, 2) > 2500) {
             globalThis.popupDragged = true;
         }
@@ -537,6 +640,7 @@ function popupMove(e) {
             document.getElementById('popup').style.top = globalThis.initialLocation[0] + e.clientY - globalThis.startClickLocation[1];
             document.getElementById('popup').style.left = globalThis.initialLocation[1] + e.clientX - globalThis.startClickLocation[0];
             document.getElementById('popup').style.width = globalThis.initialLocation[2];
+            updateSimilaritySettingsLocation();
         }
     }
 }
@@ -570,7 +674,7 @@ function onFolderDoubleClick(fid) {
         position: { x: n.total_offset_x, y: n.total_offset_y },
         grabbable: false,
         pannable: true,
-        style: { 'background-opacity': '0', 'border-width': '2', 'border-color': 'blue' }
+        style: { 'background-opacity': '0', 'border-width': '2', 'border-color': '#03254E' }
     });
     updateView();
 }
@@ -815,9 +919,6 @@ function highlightCallTreeFunction(fileArr, func) {
     let depEdgeSet = new Set();
     let processedNodeSet = new Set();
     let depNodeSet = {};
-
-    // depNodeSet[fileName] = 'dependency';
-    // processedNodeSet.add(fileName);
 
     let searchQueue = [];
     if (globalThis.nodes[fileName].content['FunctionDef'].hasOwnProperty(func)) {
@@ -1209,6 +1310,7 @@ function setSearchView() {
             if (omap.length != 0) {
                 /*create a DIV element for each matching element:*/
                 b = document.createElement("DIV");
+                b.style.marginTop = '2px';
                 /*make the matching letters bold:*/
                 omap.forEach(o => {
                     if (o[1] == 'strong') {
@@ -1247,7 +1349,15 @@ function setSearchView() {
                 a.appendChild(b);
             }
         }
+
+        // Tell the user if no results found
+        if (a.childElementCount == 0) {
+            let notFoundDiv = document.createElement('div');
+            notFoundDiv.innerHTML = `No function/file/class found`;
+            a.appendChild(notFoundDiv);
+        }
     });
+
     /*execute a function presses a key on the keyboard:*/
     inp.addEventListener("keydown", function (e) {
         var x = document.getElementById(this.id + "autocomplete-list");
@@ -1468,10 +1578,21 @@ function goToView() {
 
             window.addEventListener('mousemove', popupMove, true);
             globalThis.potentialDrag = false;
+
+            globalThis.nameWeight = INITIAL_NAME_WEIGHT;
+            globalThis.callWeight = INITIAL_CALL_WEIGHT;
+            globalThis.bodyWeight = INITIAL_BODY_WEIGHT;
         }
     }
     req.open('GET', 'http://localhost:5000/files');
     req.send();
+
+    let req2 = new XMLHttpRequest();
+    req2.open('POST', `http://localhost:5000/weight`);
+    req2.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+    const data = JSON.stringify({ "name-weight": INITIAL_NAME_WEIGHT, "call-weight": INITIAL_CALL_WEIGHT, "body-weight": INITIAL_BODY_WEIGHT });
+    req2.send(data);
+
 }
 
 function onClearSelection() {
@@ -1484,6 +1605,7 @@ function onClearSelection() {
     globalThis.currSearchDepSet = {};
     document.getElementById('func-search').value = '';
     document.getElementById('code-loaded').innerHTML = '';
+    document.getElementById('code-info-widget').remove();
     closePopup();
     if (document.getElementById('code-info-widget') != null) {
         document.getElementById('code-info-widget').remove();
