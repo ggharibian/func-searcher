@@ -24,6 +24,7 @@ OUTPUT_FOLDER = ''
 CALL_WEIGHT_FACTOR = 5
 BODY_WEIGHT_FACTOR = 20
 NAME_WEIGHT_FACTOR = 100 - (CALL_WEIGHT_FACTOR + BODY_WEIGHT_FACTOR)
+COMMENT_DATA_LOCATION = 'comment_data/data.csv'
 
 class NameFormatter(Formatter):
     def __init__(self):
@@ -647,9 +648,9 @@ def postprocess_index(root):
             return bow, count_vec
 
         def get_dense_vect_for_single_str(item, count_vec):
-            return count_vec.transform([item]).todense()
+            return count_vec.transform([item]).toarray()
         
-        data, labels = extract_csv_to_numpy_array('data.csv')
+        data, labels = extract_csv_to_numpy_array(COMMENT_DATA_LOCATION)
         bow, count_vec = get_bow_model(data)
         labels, le = convert_labels_to_discrete(labels)
         
@@ -664,6 +665,7 @@ def postprocess_index(root):
             param_map = extract_parameters_from_func_description(comment)
             for p in param_map:
                 guess = assess_comment(p, param_map[p], gnb, le, count_vec)
+                print('guess: ', guess)
                 if p in evaluated_dependencies:
                     evaluated_dependencies[p].add(guess)
                 else:
