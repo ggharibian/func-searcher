@@ -43,6 +43,9 @@ const INITIAL_CALL_WEIGHT = 5;
 const INITIAL_BODY_WEIGHT = 20;
 const INITIAL_NAME_WEIGHT = 75;
 
+const DEPENDENCY_COLOR = "#f18805";
+const DEPENDENT_COLOR = "#6184d8";
+
 // https://observablehq.com/@mourner/simple-rectangle-packing
 function packRectangles(boxes) {
     // calculate total box area and maximum box width
@@ -927,6 +930,7 @@ function highlightCallTreeFunction(fileArr, func) {
             globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
                 if (globalThis.nodes.hasOwnProperty(d)) {
                     searchQueue.push([d, cs[1], fileName]);
+                    searchQueue.push(1);
                 }
             });
         });
@@ -937,21 +941,25 @@ function highlightCallTreeFunction(fileArr, func) {
             globalThis.nodes[fileName].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
                 if (globalThis.nodes.hasOwnProperty(d)) {
                     searchQueue.push([d, cs[1], fileName]);
+                    searchQueue.push(1);
                 }
             });
         });
     }
 
     while (searchQueue.length != 0) {
-        let cfa = searchQueue.pop();
+        let cfa = searchQueue.shift();
+        let level = searchQueue.shift();
+
         if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].content['FunctionDef'].hasOwnProperty(cfa[1])) continue
-        depNodeSet[cfa[0]] = 'dependency';
+        depNodeSet[cfa[0]] = [interpolateColors(DEPENDENCY_COLOR, '#cccccc', level), level];;
         depEdgeSet.add([cfa[2], cfa[0], 'red']);
         globalThis.nodes[cfa[0]].content['FunctionDef'][cfa[1]]['calls'].forEach(c => {
             const cs = c.split('|');
             globalThis.nodes[cfa[0]].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
                 if (globalThis.nodes.hasOwnProperty(d)) {
                     searchQueue.push([d, cs[1], cfa[0]]);
+                    searchQueue.push(level+1);
                 }
             });
         });
@@ -962,6 +970,7 @@ function highlightCallTreeFunction(fileArr, func) {
         globalThis.nodes[fileName].content['FunctionDef'][func]['other-calls'].forEach(c => {
             if (globalThis.nodes.hasOwnProperty(c)) {
                 searchQueue.push([c, func, fileName]);
+                searchQueue.push(1);
             }
         });
     }
@@ -969,22 +978,25 @@ function highlightCallTreeFunction(fileArr, func) {
         globalThis.nodes[fileName].content['ClassDef'][func]['other-calls'].forEach(c => {
             if (globalThis.nodes.hasOwnProperty(c)) {
                 searchQueue.push([c, func, fileName]);
+                searchQueue.push(1);
             }
         });
     }
 
-
     while (searchQueue.length != 0) {
-        let cfa = searchQueue.pop();
+        let cfa = searchQueue.shift();
+        let level = searchQueue.shift();
+
         let fqfunc = cfa[2] + '|' + cfa[1];
         if (processedNodeSet.has(cfa[0]) || !globalThis.nodes[cfa[0]].callMap.hasOwnProperty(fqfunc)) continue
 
-        depNodeSet[cfa[0]] = 'dependent';
+        depNodeSet[cfa[0]] = [interpolateColors(DEPENDENT_COLOR, '#cccccc', level), level];;
         depEdgeSet.add([cfa[0], cfa[2], 'blue']);
         globalThis.nodes[cfa[0]].callMap[fqfunc].forEach(fdef => {
             globalThis.nodes[cfa[0]].content.FunctionDef[fdef]['other-calls'].forEach(oc => {
                 if (globalThis.nodes.hasOwnProperty(oc)) {
                     searchQueue.push([oc, fdef, cfa[0]]);
+                    searchQueue.push(level+1);
                 }
             });
         });
@@ -1006,8 +1018,12 @@ function highlightSet(depEdgeSet, depNodeSet) {
     });
 
     globalThis.currSearchDepSet = {};
+    let styledNodes = {};
     Object.keys(depNodeSet).forEach(k => {
-        globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k] == 'dependency' ? 'red' : 'blue'}` });
+        if (!styledNodes.hasOwnProperty(visibleNodeMap[k]) || depNodeSet[k][1] < styledNodes[visibleNodeMap]) {
+            globalThis.cy.nodes(`node[id="${visibleNodeMap[k]}"]`).style({ 'background-color': `${depNodeSet[k][0]}` });
+            styledNodes[visibleNodeMap[k]] = depNodeSet[k][1];
+        }
     });
     depEdgeSet.forEach(e => {
         globalThis.cy.edges(`edge[source="${visibleNodeMap[e[0]]}"][target="${visibleNodeMap[e[1]]}"]`).style({ 'z-index': '5', 'line-color': `${e[2]}` });
@@ -1022,23 +1038,45 @@ function highlightSet(depEdgeSet, depNodeSet) {
     });
 }
 
+function interpolateColors(c1, c2, level) {
+    let c1R = parseInt(c1.substring(1, 3), 16);
+    let c1G = parseInt(c1.substring(3, 5), 16);
+    let c1B = parseInt(c1.substring(5, 7), 16);
+    let c2R = parseInt(c2.substring(1, 3), 16);
+    let c2G = parseInt(c2.substring(3, 5), 16);
+    let c2B = parseInt(c2.substring(5, 7), 16);
+
+    let m1 = Math.pow(2, -0.5*level);
+    let r = Math.round(c1R * m1 + c2R * (1-m1));
+    let g = Math.round(c1G * m1 + c2G * (1-m1));
+    let b = Math.round(c1B * m1 + c2B * (1-m1));
+
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 function highlightCallTreeFile(name) {
     let depEdgeSet = new Set();
     let depNodeSet = {};
+    let visited = {};
     let searchQueue = [];
     searchQueue.push(name);
     searchQueue.push('dependency');
+    searchQueue.push(0);
     searchQueue.push(name);
     searchQueue.push('dependent');
+    searchQueue.push(0);
 
     while (searchQueue.length != 0) {
-        let ctype = searchQueue.pop();
-        let cn = searchQueue.pop();
+        let cn = searchQueue.shift();
+        let ctype = searchQueue.shift();
+        let level = searchQueue.shift();
 
-        if (depNodeSet.hasOwnProperty(cn) && depNodeSet[cn] == ctype) {
+        if (depNodeSet.hasOwnProperty(cn) && visited[cn] == ctype) {
             continue;
         }
-        depNodeSet[cn] = ctype;
+
+        visited[cn] = ctype;
+        depNodeSet[cn] = [interpolateColors(ctype=='dependency' ? DEPENDENCY_COLOR : DEPENDENT_COLOR, '#cccccc', level), level];
         let node = globalThis.nodes.hasOwnProperty(cn) ? globalThis.nodes[cn] : globalThis.folders[cn];
 
         if (ctype == 'dependency') {
@@ -1049,6 +1087,7 @@ function highlightCallTreeFile(name) {
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
                         searchQueue.push('dependency');
+                        searchQueue.push(level+1);
                     }
                 }
             });
@@ -1061,6 +1100,7 @@ function highlightCallTreeFile(name) {
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
                         searchQueue.push('dependent');
+                        searchQueue.push(level+1);
                     }
                 }
             });
@@ -1605,7 +1645,6 @@ function onClearSelection() {
     globalThis.currSearchDepSet = {};
     document.getElementById('func-search').value = '';
     document.getElementById('code-loaded').innerHTML = '';
-    document.getElementById('code-info-widget').remove();
     closePopup();
     if (document.getElementById('code-info-widget') != null) {
         document.getElementById('code-info-widget').remove();
