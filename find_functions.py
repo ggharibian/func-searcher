@@ -995,7 +995,7 @@ def postprocess_index(root):
     # Filter out obviously wrong definitions
     for f in files:
         for fc in function_calls[f]:
-            function_calls[f][fc]['defined'] = [d for d in function_calls[f][fc]['defined'] if d not in files or fc in function_defs[d] or fc in class_defs[d]]
+            function_calls[f][fc]['defined'] = [d for d in function_calls[f][fc]['defined'] if d not in files or fc in function_defs[d] or fc in class_defs[d] or function_calls[f][fc]['alias'] in function_defs[d] or function_calls[f][fc]['alias'] in class_defs[d]]
 
     count_tot = 0
     count_nf = 0
