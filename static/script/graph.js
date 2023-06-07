@@ -355,8 +355,8 @@ function closePopup() {
     globalThis.popupId = undefined;
 }
 
-function goToFunction(functionName, filename, preference) {
-
+function goToFunction(functionName, filename, preference, ind) {
+    globalThis.lastInd = ind;
     let lineno = 0;
     let ftype = FunctionType.Definition;
     if (preference == 'Def') {
@@ -369,7 +369,7 @@ function goToFunction(functionName, filename, preference) {
             ftype = FunctionType.ClassDef;
         }
         else if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
-            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
+            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][ind];
             ftype = FunctionType.Call;
         }
         else {
@@ -380,7 +380,7 @@ function goToFunction(functionName, filename, preference) {
     }
     else {
         if (globalThis.nodes[filename].content.FunctionCall.hasOwnProperty(functionName)) {
-            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][0];
+            lineno = globalThis.nodes[filename].content.FunctionCall[functionName]['line_num'][ind];
             ftype = FunctionType.Call;
         }
         else if (globalThis.nodes[filename].content.FunctionDef.hasOwnProperty(functionName)) {
@@ -397,7 +397,7 @@ function goToFunction(functionName, filename, preference) {
         }
     }
 
-    loadCode(filename, scrollToFunction(functionName, preference));
+    loadCode(filename, scrollToFunction(functionName, preference, ind));
     onFunctionClick(`line-${lineno}`, filename, ftype, functionName);
 
     let fpathArr = filename.split('/');
@@ -445,7 +445,7 @@ function safeGoToFunction(file, func, preference) {
     }
     else {
         globalThis.cy.nodes().unselect();
-        goToFunction(func, file, preference);
+        goToFunction(func, file, preference, 0);
     }
 }
 
@@ -527,7 +527,7 @@ function updateSimilaritySettingsLocation() {
         document.getElementById('similarity-settings').style.left = `${popupBbox.left + popupBbox.width - simBbox.width}px`;
     }
     else if (popupBbox.bottom > simBbox.height) {
-        document.getElementById('similarity-settings').style.top = `${popupBbox.top  + popupBbox.height - 3}px`;
+        document.getElementById('similarity-settings').style.top = `${popupBbox.top + popupBbox.height - 3}px`;
         document.getElementById('similarity-settings').style.left = `${popupBbox.left + popupBbox.width - simBbox.width}px`;
     }
     else {
@@ -569,6 +569,25 @@ function onSimilaritySettingsClick() {
     updateSimilaritySettingsLocation();
 }
 
+function highlightFunction(f, file, type) {
+    if (type == FunctionType.ClassDef || type == FunctionType.Definition) {
+        globalThis.activeName = `${f} (${file})`;
+        updateView();
+    }
+    else if (globalThis.nodes[file].content.FunctionCall[f]['defined'].length > 0 &&
+        globalThis.nodes.hasOwnProperty(globalThis.nodes[file].content.FunctionCall[f]['defined'][0])) {
+        globalThis.activeName = `${f} (${globalThis.nodes[file].content.FunctionCall[f]['defined'][0]})`;
+        updateView();
+    }
+}
+
+function callChange(file, f, dc) {
+    let new_ind = (globalThis.lastInd + dc + globalThis.nodes[file].content.FunctionCall[f]['line_num'].length) % globalThis.nodes[file].content.FunctionCall[f]['line_num'].length;
+    goToFunction(f, file, FunctionType.Call, new_ind);
+    scrollToFunction(f, FunctionType.Call, new_ind);
+}
+
+
 function onFunctionClick(id, file, ft, f) {
     let req = new XMLHttpRequest();
     req.onreadystatechange = function () {
@@ -581,14 +600,40 @@ function onFunctionClick(id, file, ft, f) {
             const popup = document.createElement("div");
             popup.id = 'popup'
             globalThis.popupId = id;
+
+            if (FunctionType.Call == ft) {
+                const idNum = parseInt(id.substring(id.indexOf('-') + 1));
+                globalThis.nodes[file].content.FunctionCall[f]['line_num'].forEach((v, i) => {
+                    if (v == idNum) {
+                        globalThis.lastInd = i;
+                    }
+                });
+                if (globalThis.lastInd == undefined) {
+                    globalThis.lastInd = 0;
+                }
+            }
+
             popup.innerHTML = `
                 <h1 id='popup-header'>${f}</h1>
                 <button id='close-button' onclick="closePopup()" class="close-button">
                 <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 96 960 960" width="36"><path d="m249 849-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
                 </button>
+                <button id='highlight-button' onclick="highlightFunction('${f}', '${file}', ${ft})" class="highlight-button" title="Highlight call tree">
+                <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 -960 960 960" width="36"><path d="M109.912-150Q81-150 60.5-170.589 40-191.177 40-220.089 40-249 60.494-269.5t49.273-20.5q5.233 0 10.233.5 5 .5 13 2.5l200-200q-2-8-2.5-13t-.5-10.233q0-28.779 20.589-49.273Q371.177-580 400.089-580 429-580 449.5-559.366t20.5 49.61Q470-508 467-487l110 110q8-2 13-2.5t10-.5q5 0 10 .5t13 2.5l160-160q-2-8-2.5-13t-.5-10.233q0-28.779 20.589-49.273Q821.177-630 850.089-630 879-630 899.5-609.411q20.5 20.588 20.5 49.5Q920-531 899.506-510.5T850.233-490Q845-490 840-490.5q-5-.5-13-2.5L667-333q2 8 2.5 13t.5 10.233q0 28.779-20.589 49.273Q628.823-240 599.911-240 571-240 550.5-260.494T530-309.767q0-5.233.5-10.233.5-5 2.5-13L423-443q-8 2-13 2.5t-10.25.5q-1.75 0-22.75-3L177-243q2 8 2.5 13t.5 10.233q0 28.779-20.589 49.273Q138.823-150 109.912-150ZM160-592l-20.253-43.747L96-656l43.747-20.253L160-720l20.253 43.747L224-656l-43.747 20.253L160-592Zm440-51-30.717-66.283L503-740l66.283-30.717L600-837l30.717 66.283L697-740l-66.283 30.717L600-643Z"/></svg>                </button>
                 <button id='set-button' title="Adjust similarity weights" class="settings-button" onclick="onSimilaritySettingsClick()">
                 <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 -960 960 960" width="36"><path d="m388-80-20-126q-19-7-40-19t-37-25l-118 54-93-164 108-79q-2-9-2.5-20.5T185-480q0-9 .5-20.5T188-521L80-600l93-164 118 54q16-13 37-25t40-18l20-127h184l20 126q19 7 40.5 18.5T669-710l118-54 93 164-108 77q2 10 2.5 21.5t.5 21.5q0 10-.5 21t-2.5 21l108 78-93 164-118-54q-16 13-36.5 25.5T592-206L572-80H388Zm92-270q54 0 92-38t38-92q0-54-38-92t-92-38q-54 0-92 38t-38 92q0 54 38 92t92 38Zm0-60q-29 0-49.5-20.5T410-480q0-29 20.5-49.5T480-550q29 0 49.5 20.5T550-480q0 29-20.5 49.5T480-410Zm0-70Zm-44 340h88l14-112q33-8 62.5-25t53.5-41l106 46 40-72-94-69q4-17 6.5-33.5T715-480q0-17-2-33.5t-7-33.5l94-69-40-72-106 46q-23-26-52-43.5T538-708l-14-112h-88l-14 112q-34 7-63.5 24T306-642l-106-46-40 72 94 69q-4 17-6.5 33.5T245-480q0 17 2.5 33.5T254-413l-94 69 40 72 106-46q24 24 53.5 41t62.5 25l14 112Z"/></svg>
                 </button>
+                ${ft == FunctionType.Call ?
+                    `
+                    <button id='next-button' onclick="callChange('${file}', '${f}', 1)" class="next-button" title="Next call">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 -960 960 960" width="36"><path d="m480-160-42-43 247-247H160v-60h525L438-757l42-43 320 320-320 320Z"/></svg>
+                    </button>
+                    <button id='prev-button' onclick="callChange('${file}', '${f}', -1)" class="prev-button" title="Previous call">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 -960 960 960" width="36"><path d="M480-160 160-480l320-320 42 42-248 248h526v60H274l248 248-42 42Z"/></svg>
+                    </button>
+                    `
+                    : ''
+                }
                 <div class='popup-toprow' id='par-row'>
                     <div class='popup-toprow-elem' id='defbox' style="border-right: 1px #03254E solid;">
                         <h2 id='def-title'>Defined</h2>
@@ -610,8 +655,8 @@ function onFunctionClick(id, file, ft, f) {
             document.getElementById('main-content').appendChild(popup);
             document.getElementById('defbox').style.paddingRight = `${Math.max(8, (document.getElementById('defbox').getBoundingClientRect().left - document.getElementById('par-row').getBoundingClientRect().left) / 2)}px`;
             document.getElementById('callbox').style.paddingLeft = `${Math.max(8, (document.getElementById('par-row').getBoundingClientRect().right - document.getElementById('callbox').getBoundingClientRect().right) / 2)}px`;
-            if (document.getElementById('popup').getBoundingClientRect().width <= document.getElementById('popup-header').getBoundingClientRect().width + document.getElementById('close-button').getBoundingClientRect().width + document.getElementById('set-button').getBoundingClientRect().width + 12) {
-                document.getElementById('popup').style.width = `${12 + document.getElementById('popup-header').getBoundingClientRect().width + document.getElementById('close-button').getBoundingClientRect().width + document.getElementById('set-button').getBoundingClientRect().width}px`;
+            if (document.getElementById('popup').getBoundingClientRect().width <= document.getElementById('popup-header').getBoundingClientRect().width + 5 * document.getElementById('close-button').getBoundingClientRect().width + 16) {
+                document.getElementById('popup').style.width = `${16 + document.getElementById('popup-header').getBoundingClientRect().width + 5 * document.getElementById('close-button').getBoundingClientRect().width}px`;
             }
             globalThis.popupDragged = false;
             updatePopupPosition();
@@ -959,7 +1004,7 @@ function highlightCallTreeFunction(fileArr, func) {
             globalThis.nodes[cfa[0]].content['FunctionCall'][cs[1]]['defined'].forEach(d => {
                 if (globalThis.nodes.hasOwnProperty(d)) {
                     searchQueue.push([d, cs[1], cfa[0]]);
-                    searchQueue.push(level+1);
+                    searchQueue.push(level + 1);
                 }
             });
         });
@@ -996,7 +1041,7 @@ function highlightCallTreeFunction(fileArr, func) {
             globalThis.nodes[cfa[0]].content.FunctionDef[fdef]['other-calls'].forEach(oc => {
                 if (globalThis.nodes.hasOwnProperty(oc)) {
                     searchQueue.push([oc, fdef, cfa[0]]);
-                    searchQueue.push(level+1);
+                    searchQueue.push(level + 1);
                 }
             });
         });
@@ -1046,10 +1091,10 @@ function interpolateColors(c1, c2, level) {
     let c2G = parseInt(c2.substring(3, 5), 16);
     let c2B = parseInt(c2.substring(5, 7), 16);
 
-    let m1 = Math.pow(2, -0.5*level);
-    let r = Math.round(c1R * m1 + c2R * (1-m1));
-    let g = Math.round(c1G * m1 + c2G * (1-m1));
-    let b = Math.round(c1B * m1 + c2B * (1-m1));
+    let m1 = Math.pow(2, -0.5 * level);
+    let r = Math.round(c1R * m1 + c2R * (1 - m1));
+    let g = Math.round(c1G * m1 + c2G * (1 - m1));
+    let b = Math.round(c1B * m1 + c2B * (1 - m1));
 
     return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
@@ -1076,7 +1121,7 @@ function highlightCallTreeFile(name) {
         }
 
         visited[cn] = ctype;
-        depNodeSet[cn] = [interpolateColors(ctype=='dependency' ? DEPENDENCY_COLOR : DEPENDENT_COLOR, '#cccccc', level), level];
+        depNodeSet[cn] = [interpolateColors(ctype == 'dependency' ? DEPENDENCY_COLOR : DEPENDENT_COLOR, '#cccccc', level), level];
         let node = globalThis.nodes.hasOwnProperty(cn) ? globalThis.nodes[cn] : globalThis.folders[cn];
 
         if (ctype == 'dependency') {
@@ -1087,7 +1132,7 @@ function highlightCallTreeFile(name) {
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
                         searchQueue.push('dependency');
-                        searchQueue.push(level+1);
+                        searchQueue.push(level + 1);
                     }
                 }
             });
@@ -1100,7 +1145,7 @@ function highlightCallTreeFile(name) {
                     if (!depNodeSet.hasOwnProperty(c) || depNodeSet[c] != ctype) {
                         searchQueue.push(c);
                         searchQueue.push('dependent');
-                        searchQueue.push(level+1);
+                        searchQueue.push(level + 1);
                     }
                 }
             });
@@ -1169,7 +1214,7 @@ function onMouseUpCode(event) {
     codeInfoWidget.style.top = document.getElementById('graph-side').getBoundingClientRect().height;
 }
 
-function scrollToFunction(fname, preference) {
+function scrollToFunction(fname, preference, ind) {
     return function () {
         let ln = undefined;
         if (preference == 'Def') {
@@ -1180,12 +1225,12 @@ function scrollToFunction(fname, preference) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['ClassDef'][fname]['lineno'];
             }
             else {
-                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][ind];
             }
         }
         else {
             if (globalThis.nodes[globalThis.displayedCode].content['FunctionCall'].hasOwnProperty(fname)) {
-                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][0];
+                ln = globalThis.nodes[globalThis.displayedCode].content['FunctionCall'][fname]['line_num'][ind];
             }
             else if (globalThis.nodes[globalThis.displayedCode].content['FunctionDef'].hasOwnProperty(fname)) {
                 ln = globalThis.nodes[globalThis.displayedCode].content['FunctionDef'][fname]['lineno'][0];
@@ -1373,7 +1418,7 @@ function setSearchView() {
                         updateView();
                         let functionName = globalThis.activeName.substring(0, globalThis.activeName.indexOf(' '));
                         let filename = globalThis.activeName.substring(globalThis.activeName.indexOf('(') + 1, globalThis.activeName.length - 1).replace('.py', '.json');
-                        goToFunction(functionName, filename, 'Def');
+                        goToFunction(functionName, filename, 'Def', 0);
                     }
                     else {
                         globalThis.activeName = inp.value.replace('.py', '.json');

@@ -214,8 +214,20 @@ button:hover {
   right: 0;
 }
 
+.highlight-button {
+  right: 40;
+}
+
 .settings-button {
   left: 0;
+}
+
+.next-button {
+  left: 80;
+}
+
+.prev-button {
+  left: 40;
 }
 
 .local-name {
