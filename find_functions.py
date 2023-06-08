@@ -568,6 +568,7 @@ def postprocess_index(root):
                                             if b in import_alias_set:
                                                 function_calls[f][fc]['defined'].add(b)
                                         continue
+                        function_calls[f][fc]['alias'] = '.'.join(fc.split('.')[1:])
 
         # Mine comments for parameter definitions
         comment_list = []
