@@ -1694,6 +1694,9 @@ function onClearSelection() {
     if (document.getElementById('code-info-widget') != null) {
         document.getElementById('code-info-widget').remove();
     }
+    if (document.getElementById('explain-window') != null) {
+        document.getElementById('explain-window').remove();
+    }
 }
 
 document.addEventListener('mouseup', (e) => {
